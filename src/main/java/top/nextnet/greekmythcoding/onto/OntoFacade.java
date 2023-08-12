@@ -1,6 +1,7 @@
 package top.nextnet.greekmythcoding.onto;
 
-import org.apache.jena.arq.querybuilder.ConstructBuilder;
+import org.apache.jena.arq.querybuilder.ExprFactory;
+import org.apache.jena.arq.querybuilder.SelectBuilder;
 import org.apache.jena.ontology.Individual;
 import org.apache.jena.ontology.OntModel;
 import org.apache.jena.ontology.Ontology;
@@ -12,8 +13,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 /**
  * Hello world!
@@ -60,14 +60,14 @@ public class OntoFacade {
         }
     }
 
-    private static final String NS = "https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0";
+    private static final String NS = "https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#";
 
     private static Resource getResource(String name) {
-        return ontologyModel.createResource(NS + "#" + name);
+        return ontologyModel.createResource(NS + name);
     }
 
     private static Property getProperty(String name) {
-        return ontologyModel.createObjectProperty(NS + "/" + name);
+        return ontologyModel.createObjectProperty(NS + name);
     }
 
     private static void printStatements(Model m, Resource s, Property p, Resource o) {
@@ -133,21 +133,30 @@ public class OntoFacade {
         return res;
     }
 
-    public LabeledResource getEpisodeLocation(String episodeResource) {
-        String QUERY_STR = "PREFIX owl: <http://www.w3.org/2002/07/owl#>\n" +
-                "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n" +
-                "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n" +
-                "prefix :     <https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#>\n" +
-                "SELECT distinct ?LocationType ?_label WHERE{\n" +
-                "?episodeResource :has_location ?l.\n" +
-                "?l rdf:type ?LocationType.\n" +
-                " ?LocationType rdfs:label ?_label.\n" +
-                "}";
+    public LabeledResource getLocationForEpisode(String episodeResource) {
+
+        SelectBuilder sb = new SelectBuilder();
+
+        ExprFactory exprF = sb.getExprFactory();
+
+
+        sb.addPrefix("owl", "http://www.w3.org/2002/07/owl#")
+                .addPrefix("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#")
+                .addPrefix("rdfs", "http://www.w3.org/2000/01/rdf-schema#")
+                .addPrefix("", NS)
+                .addVar("?LocationType")
+                .addVar("?_label")
+                .addWhere(ResourceFactory.createResource(episodeResource), ":has_location", "?l")
+
+                .addWhere("?l", "rdf:type", "?LocationType")
+                .addWhere("?LocationType", "rdfs:label", "?_label")
+                .setDistinct(true);
+
 
         QuerySolutionMap initialBinding = new QuerySolutionMap();
         ;
-        initialBinding.add("episodeResource", ResourceFactory.createResource(episodeResource));
-        var queryExecution = QueryExecutionFactory.create(QUERY_STR, ontologyModel, initialBinding);
+
+        var queryExecution = QueryExecutionFactory.create(sb.build(), ontologyModel);
         try (QueryExecution qexec = QueryExecutionFactory.create(queryExecution.getQuery(), ontologyModel)) {
             ResultSet results = qexec.execSelect();
             for (; results.hasNext(); ) {
@@ -161,6 +170,25 @@ public class OntoFacade {
     }
 
     public LabeledResource getEpisodeFromBookAndEpisodeNumber(String bookResource, Integer previousEpisodeNumber) {
+
+        SelectBuilder sb = new SelectBuilder();
+
+        ExprFactory exprF = sb.getExprFactory();
+
+
+        sb.addPrefix("owl", "http://www.w3.org/2002/07/owl#")
+                .addPrefix("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#")
+                .addPrefix("rdfs", "http://www.w3.org/2000/01/rdf-schema#")
+                .addPrefix("", NS)
+                .addVar("?location")
+                .addVar("?label")
+                .addWhere("?location", "rdfs:subClassOf*", LOCATION)
+                .addWhere("?location", "rdfs:label", "?label")
+                .addWhere("?individual", "rdf:type", "owl:NamedIndividual")
+                .addWhere("?individual", "rdf:type", "?location")
+                .setDistinct(true);
+
+
         String QUERY_STR = "PREFIX owl: <http://www.w3.org/2002/07/owl#>\n" +
                 "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n" +
                 "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n" +
@@ -189,15 +217,48 @@ public class OntoFacade {
         return null;
     }
 
-    final Resource EPISODE = ontologyModel.createResource(NS + "#Episode");
-    final Property HAS_BOOK = ontologyModel.createProperty(NS + "#has_book");
+    final Resource EPISODE = ontologyModel.createResource(NS + "Episode");
+    final Property HAS_BOOK = ontologyModel.createProperty(NS + "has_book");
+    final Property HAS_LOCATION = ontologyModel.createProperty(NS + "has_location");
+    final Property LOCATION = ontologyModel.createProperty(NS + "Location");
 
     public Resource addEpisode(String bookresource, Integer episodeNumber, String episodeLabel) {
         Resource newEpisode = ResourceFactory.createResource(bookresource + "_" + String.format("%02d", episodeNumber));
-        Individual i = ontologyModel.createIndividual(NS + "#" + newEpisode.getLocalName(), newEpisode);
+        Individual i = ontologyModel.createIndividual(NS + newEpisode.getLocalName(), newEpisode);
         i.addRDFType(EPISODE);
         i.addProperty(RDFS.label, episodeLabel);
         i.addProperty(HAS_BOOK, ResourceFactory.createResource(bookresource));
         return newEpisode;
     }
+
+    public void setLocationForEpisode(Resource location, Resource episode) {
+        ontologyModel.add(episode, HAS_LOCATION, location);
+    }
+
+    public List<LabeledResource> getAllLocations() {
+
+
+        SelectBuilder sb = new SelectBuilder();
+
+        ExprFactory exprF = sb.getExprFactory();
+
+
+        sb.addPrefix("owl", "http://www.w3.org/2002/07/owl#")
+                .addPrefix("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#")
+                .addPrefix("rdfs", "http://www.w3.org/2000/01/rdf-schema#")
+                .addPrefix("", NS)
+                .addVar("?location")
+                .addVar("?label")
+                .addWhere("?location", "rdfs:subClassOf*", LOCATION)
+                .addWhere("?location", "rdfs:label", "?label")
+                .addWhere("?individual", "rdf:type", "owl:NamedIndividual")
+                .addWhere("?individual", "rdf:type", "?location")
+                .setDistinct(true);
+
+
+        Query q = sb.build();
+        return this.getLabeledResources(q, "label", "location");
+    }
+
+
 }

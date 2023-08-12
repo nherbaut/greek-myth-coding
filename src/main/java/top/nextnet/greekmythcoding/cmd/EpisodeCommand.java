@@ -1,8 +1,10 @@
 package top.nextnet.greekmythcoding.cmd;
 
+import org.apache.jena.rdf.model.Resource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.shell.command.annotation.Command;
 import org.springframework.shell.component.ConfirmationInput;
+import org.springframework.shell.component.MultiItemSelector;
 import org.springframework.shell.component.SingleItemSelector;
 import org.springframework.shell.component.StringInput;
 import org.springframework.shell.component.context.ComponentContext;
@@ -72,19 +74,45 @@ public class EpisodeCommand extends AbstractShellComponent {
         stringInput.setResourceLoader(getResourceLoader());
         stringInput.setTemplateExecutor(getTemplateExecutor());
         String episodeLabel = stringInput.run(ComponentContext.empty()).getResultValue();
-        ontoFacade.addEpisode(bookResource, episodeNumber,episodeLabel);
-        LabeledResource episodeLocation = ontoFacade.getEpisodeLocation(previousEpisodeResource.resourceAsStr());
 
-        ConfirmationInput confirmationInput = new ConfirmationInput(getTerminal(), "is " + episodeLocation.label() + " still the place where the story is happenning?");
+        //create the episode
+        Resource newEpisode = ontoFacade.addEpisode(bookResource, episodeNumber,episodeLabel);
+
+        //copy location from previous episode
+        LabeledResource previousEpisodeLocation = ontoFacade.getLocationForEpisode(previousEpisodeResource.resourceAsStr());
+        ConfirmationInput confirmationInput = new ConfirmationInput(getTerminal(), "is " + previousEpisodeLocation.label() + " still the place where the story is happenning?");
+        confirmationInput.setResourceLoader(getResourceLoader());
+        confirmationInput.setTemplateExecutor(getTemplateExecutor());
         Boolean result = confirmationInput.run(ComponentContext.empty()).getResultValue();
         if (result) {
-
+            ontoFacade.setLocationForEpisode(previousEpisodeLocation.resource(),newEpisode);
         }
-        return "ok" + episodeLocation.resourceAsStr();
+        else{
+            chooseLocationForEpisode(newEpisode,Arrays.asList(previousEpisodeLocation.resource()));
+        }
+        return "ok" + previousEpisodeLocation.resourceAsStr();
+    }
+
+    /**
+     * Choose a location for the specified episode
+     * @param newEpisode
+     */
+    private void chooseLocationForEpisode(Resource newEpisode,List<Resource> suggestions) {
+        List<LabeledResource> locations = ontoFacade.getAllLocations();
+        List<SelectorItem<String>> items = locations.stream().map(lr -> SelectorItem.of(lr.label(),lr.resourceAsStr(),true, suggestions.contains(lr.resource()))).collect(Collectors.toList());
+
+        MultiItemSelector<String, SelectorItem<String>> component = new MultiItemSelector<>(getTerminal(),
+                items, "testSimple", null);
+        component.setResourceLoader(getResourceLoader());
+        component.setTemplateExecutor(getTemplateExecutor());
+        MultiItemSelector.MultiItemSelectorContext<String, SelectorItem<String>> bookSelectorContext = component
+                .run(SingleItemSelector.SingleItemSelectorContext.empty());
+        bookSelectorContext.getValues().forEach(System.out::println);
+
     }
 
     private static Integer getPreviousEpisodeNumber(List<Integer> existingEpisodes, Integer selectedEpisodeNumber) throws NoPreviousEpisodeException {
-        return existingEpisodes.stream().sorted().filter(i -> i < selectedEpisodeNumber).findFirst().orElseThrow(() -> new NoPreviousEpisodeException(selectedEpisodeNumber));
+        return existingEpisodes.stream().sorted().filter(i -> i < selectedEpisodeNumber).reduce((first,second) -> second).orElseThrow(() -> new NoPreviousEpisodeException(selectedEpisodeNumber));
     }
 
     protected static Integer getNextEpisodeSuggestion(List<Integer> existingEpisodes) {
