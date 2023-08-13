@@ -40,7 +40,7 @@ public class OntoFacade {
             "?s rdfs:label ?label.\n" +
             "\n" +
             "}";
-    public static final String WHO_IS_ATHEN_KING = " PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n" +
+    public static final String WHO_IS_ATHEN_KING = "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n" +
             "PREFIX owl: <http://www.w3.org/2002/07/owl#>\n" +
             "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n" +
             "PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n" +
@@ -80,11 +80,15 @@ public class OntoFacade {
     final OntClass EPISODE = ontologyModel.getOntClass(NS + "Episode");
     final Property HAS_BOOK = ontologyModel.getOntProperty(NS + "has_book");
     final Property HAS_EPISODE_NUMBER = ontologyModel.getOntProperty(NS + "episode_number");
+
+    final OntClass CONCRETE_CHARACTER = ontologyModel.getOntClass(NS + "ConcreteCharacter");
+
     final Property HAS_PARENT = ontologyModel.getOntProperty(NS + "has_parent");
 
     final Property HAS_LOCATION = ontologyModel.getOntProperty(NS + "has_location");
     final OntClass LOCATION = ontologyModel.getOntClass(NS + "Location");
     final OntClass CHARACTER = ontologyModel.getOntClass(NS + "Character");
+
     final Property HAS_CHARACTER = ontologyModel.getOntProperty(NS + "has_character");
     final Property HAS_AGE_RANGE = ontologyModel.getOntProperty(NS + "has_AgeRange");
     final Property HAS_ROLE = ontologyModel.getOntProperty(NS + "has_role");
@@ -130,17 +134,17 @@ public class OntoFacade {
         return res;
     }
 
-    public List<Integer> getExistingEpisodesNumberForBookList(String bookResource) {
+    public List<Integer> getExistingEpisodesNumberForBookList(LabeledResource book) {
 
-        return asStream(ontologyModel.listStatements(new SimpleSelector(null, HAS_BOOK, ontologyModel.getResource(bookResource))))
+        return asStream(ontologyModel.listStatements(new SimpleSelector(null, HAS_BOOK, book.resource())))
                 .map(s -> s.getSubject().asResource().getProperty(HAS_EPISODE_NUMBER).getInt())
                 .sorted()
                 .collect(Collectors.toList());
     }
 
-    public LabeledResource getEpisode(String book, Integer episodeNumber) {
+    public LabeledResource getEpisode(LabeledResource book, Integer episodeNumber) {
 
-        return asStream(ontologyModel.listStatements(new SimpleSelector(null, HAS_BOOK, ontologyModel.getResource(book))))
+        return asStream(ontologyModel.listStatements(new SimpleSelector(null, HAS_BOOK, book.resource())))
                 .filter(statement -> episodeNumber == statement.getSubject().getProperty(HAS_EPISODE_NUMBER).getInt())
                 .map(s -> new LabeledResource(s.getSubject().getProperty(RDFS.label).getString(), s.getSubject())).findFirst().orElse(null);
 
@@ -182,13 +186,13 @@ public class OntoFacade {
         return null;
     }
 
-    public Resource addEpisode(String bookresource, Integer episodeNumber, String episodeLabel) {
-        Resource newEpisode = ontologyModel.createResource(bookresource + "_" + String.format("%02d", episodeNumber));
+    public Resource addEpisode(LabeledResource book, Integer episodeNumber, String episodeLabel) {
+        Resource newEpisode = ontologyModel.createResource(book.resource().getURI() + "_" + String.format("%03d", episodeNumber));
 
         newEpisode.addProperty(RDF.type, EPISODE);
         newEpisode.addProperty(RDFS.label, episodeLabel);
         newEpisode.addProperty(RDF.type, OWL2.NamedIndividual);
-        newEpisode.addProperty(HAS_BOOK, ResourceFactory.createResource(bookresource));
+        newEpisode.addProperty(HAS_BOOK, book.resource());
         newEpisode.addLiteral(HAS_EPISODE_NUMBER, ResourceFactory.createTypedLiteral(episodeNumber));
         return newEpisode;
     }
@@ -219,20 +223,17 @@ public class OntoFacade {
         }
     }
 
-    public List<LabeledResource> getCharactersFromPreviousEpisode(String previousEpisode) {
-        Resource previousEpisodeResource = ontologyModel.getOntResource(previousEpisode);
-
-        return asStream(previousEpisodeResource.listProperties(HAS_CHARACTER))
-                .map(stm -> stm.getObject().asResource())
-                .map(r -> asStream(r.listProperties(RDF.type)))
-                .flatMap(Function.identity())
-                .filter(s -> !s.getObject().equals(OWL2.NamedIndividual))//individuals have 2 types (NI and the Class) we take only the ontology-defined class
-                .filter(s -> s.getObject().asResource().getProperty(RDFS.label) != null)
-                .map(s -> new LabeledResource(s.getObject().asResource().getProperty(RDFS.label).getLiteral().getString(), s.getObject().asResource()))
-                .collect(Collectors.toList());
-
-
+    public Collection<LabeledResource> getCharactersFromPreviousEpisode(String previousEpisode) {
+        SelectBuilder sb = selectBuilderTemplate.clone();
+        sb.addVar("?t")
+                .setDistinct(true)
+                .addWhere(ontologyModel.getResource(previousEpisode), HAS_CHARACTER, "?c")
+                .addWhere("?c", RDF.type, "?t")
+                .addWhere("?t", RDF.type, "<https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#ConcreteCharacter>")
+                .build();
+        return asStream(QueryExecutionFactory.create(sb.build(), ontologyModel).execSelect()).map(qs -> qs.get("t").asResource()).map(LabeledResource::fromRessource).collect(Collectors.toSet());
     }
+
 
     private static <T> Stream<T> asStream(Iterator<T> itr) {
         return StreamSupport.stream(Spliterators.spliteratorUnknownSize(itr, Spliterator.IMMUTABLE), false).collect(Collectors.toList()).stream();
@@ -322,8 +323,7 @@ public class OntoFacade {
     }
 
     public LabeledResource createNewCharacter(String characterLabel) {
-        Resource newChar = ontologyModel.createResource(NS+characterLabel.replace(" ", "_"));
-        newChar.addProperty(RDF.type, CHARACTER);
+        OntClass newChar = ontologyModel.createClass(NS + characterLabel.replace(" ", "_"));
         newChar.addProperty(RDFS.label, characterLabel);
         return new LabeledResource(characterLabel, newChar);
     }
@@ -331,5 +331,55 @@ public class OntoFacade {
     public void setParentForCharacter(LabeledResource character, String parentResourceIRI) {
 
         ontologyModel.createStatement(character.resource(), HAS_PARENT, ontologyModel.getOntClass(parentResourceIRI));
+    }
+
+    public Collection<String> getAllTitlesToken() {
+        return asStream(ontologyModel.listStatements(null, RDF.type, EPISODE))
+                .filter(statement -> statement.getSubject().getProperty(RDFS.label) != null)
+                .map(LabeledResource::fromStatementSubject)
+                .map(lr -> Arrays.stream(lr.label().split(" ")))
+                .flatMap(Function.identity())
+                .collect(Collectors.toSet());
+    }
+
+    private Collection<LabeledResource> getSuclassesOf(OntClass klass) {
+        return asStream(klass.listSubClasses(true))
+                .filter(k -> k.getProperty(RDFS.label) != null)
+                .map(k -> new LabeledResource(k.getLocalName(), k)).collect(Collectors.toList());
+    }
+
+    public Collection<LabeledResource> getCharacterTypes() {
+        return getSuclassesOf(CHARACTER);
+    }
+
+    public Collection<LabeledResource> getSubClass(Resource resource) {
+        return getSuclassesOf(ontologyModel.getOntClass(resource.getURI()));
+    }
+
+    public void setType(Resource subject, Resource object) {
+        ontologyModel.getOntClass(subject.getURI()).setSuperClass(ontologyModel.getOntClass(object.getURI()));
+    }
+
+
+    public Collection<LabeledResource> getSelectableCharacterTypes() {
+
+        SelectBuilder sb = selectBuilderTemplate.clone();
+        sb.addVar("?s")
+                .addWhere("?s", "rdf:type", ":SelectableCharacter");
+
+        var queryExecution = QueryExecutionFactory.create(sb.build(), ontologyModel);
+        try (QueryExecution qexec = QueryExecutionFactory.create(queryExecution.getQuery(), ontologyModel)) {
+            return asStream(qexec.execSelect())
+                    .map(smt -> ontologyModel.getOntClass(smt.get("?s").asResource().getURI()))
+                    .filter(k -> k != null && k.getLabel(null) != null)
+                    .map(LabeledResource::fromClass)
+                    .collect(Collectors.toList());
+        }
+
+
+    }
+
+    public void setConcreteCharacter(Resource resource) {
+        ontologyModel.add(resource,RDFS.subClassOf, CONCRETE_CHARACTER);
     }
 }

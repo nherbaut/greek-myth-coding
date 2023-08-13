@@ -36,16 +36,9 @@ public class EpisodeCommand extends AbstractShellComponent {
     public String episodeSelectionFlow() {
 
 
-        List<SelectorItem<String>> books = ontoFacade.getBooks().stream().map(lr -> SelectorItem.of(lr.label(), lr.resourceAsStr())).collect(Collectors.toList());
-        SingleItemSelector<String, SelectorItem<String>> bookSelectorComponent = new SingleItemSelector<>(getTerminal(),
-                books, "Choose Book for the Episode", null);
-        bookSelectorComponent.setResourceLoader(getResourceLoader());
-        bookSelectorComponent.setTemplateExecutor(getTemplateExecutor());
-        SingleItemSelector.SingleItemSelectorContext<String, SelectorItem<String>> bookSelectorContext = bookSelectorComponent
-                .run(SingleItemSelector.SingleItemSelectorContext.empty());
-        String bookResource = bookSelectorContext.getResultItem().flatMap(si -> Optional.ofNullable(si.getItem())).get();
+        LabeledResource book = simpleSingleMatchFromList("Choissez un livre dans la liste", ontoFacade.getBooks());
 
-        List<Integer> existingEpisodes = ontoFacade.getExistingEpisodesNumberForBookList(bookResource);
+        List<Integer> existingEpisodes = ontoFacade.getExistingEpisodesNumberForBookList(book);
         Integer defaultEpisode = getNextEpisodeSuggestion(existingEpisodes);
 
         StringInput episodeSelectorComponent = new StringInput(getTerminal(), "Enter Episode number", defaultEpisode.toString());
@@ -63,24 +56,40 @@ public class EpisodeCommand extends AbstractShellComponent {
         }
 
         if (!existingEpisodes.contains(userSelectedEpisodeNumber)) {
-            return newEpisodeFlow(bookResource, userSelectedEpisodeNumber, previousEpisodeNumber);
+            return newEpisodeFlow(book, userSelectedEpisodeNumber, previousEpisodeNumber);
         } else {
-            return editExistingEpisodeFlow(bookResource, userSelectedEpisodeNumber);
+            return editExistingEpisodeFlow(book, userSelectedEpisodeNumber);
         }
 
     }
 
-    private String editExistingEpisodeFlow(String bookResource, Integer userSelectedEpisodeNumber) {
+    private LabeledResource simpleSingleMatchFromList(String prompt, Collection<LabeledResource> possibleValues) {
+        LabeledResource bookResource;
+        List<SelectorItem<LabeledResource>> books = possibleValues.stream().map(lr -> SelectorItem.of(lr.label(), lr)).collect(Collectors.toList());
+        SingleItemSelector<LabeledResource, SelectorItem<LabeledResource>> selectorComponent = new SingleItemSelector<>(getTerminal(),
+                books, prompt, null);
+        selectorComponent.setResourceLoader(getResourceLoader());
+        selectorComponent.setTemplateExecutor(getTemplateExecutor());
+        SingleItemSelector.SingleItemSelectorContext<LabeledResource, SelectorItem<LabeledResource>> selectorContext = selectorComponent
+                .run(SingleItemSelector.SingleItemSelectorContext.empty());
+        return selectorContext.getResultItem().flatMap(si -> Optional.ofNullable(si.getItem())).get();
+
+    }
+
+    private String editExistingEpisodeFlow(LabeledResource bookResource, Integer userSelectedEpisodeNumber) {
         return "ko";
     }
 
-    private String newEpisodeFlow(String bookResource, Integer episodeNumber, Integer previousEpisodeNumber) {
+    private String newEpisodeFlow(LabeledResource book, Integer episodeNumber, Integer previousEpisodeNumber) {
         //ask for episode label
-        LabeledResource previousEpisodeResource = ontoFacade.getEpisode(bookResource, previousEpisodeNumber);
+        LabeledResource previousEpisodeResource = ontoFacade.getEpisode(book, previousEpisodeNumber);
 
+        Set<String> titleCompletion = ontoFacade.getAllCharacters().stream().map(lr ->
+                lr.label()).collect(Collectors.toSet());
+        titleCompletion.addAll(ontoFacade.getAllTitlesToken());
         LineReader reader = LineReaderBuilder.builder()
                 .terminal(getTerminal())
-
+                .completer(new StringsCompleter(titleCompletion))
                 .parser(new DefaultParser())
                 .variable(LineReader.SECONDARY_PROMPT_PATTERN, "%M%P > ")
                 .variable(LineReader.INDENTATION, 2)
@@ -90,7 +99,7 @@ public class EpisodeCommand extends AbstractShellComponent {
         String episodeLabel = reader.readLine();
 
         //create the episode
-        Resource newEpisode = ontoFacade.addEpisode(bookResource, episodeNumber, episodeLabel);
+        Resource newEpisode = ontoFacade.addEpisode(book, episodeNumber, episodeLabel);
 
         //copy location from previous episode
         LabeledResource previousEpisodeLocation = ontoFacade.getLocationForEpisode(previousEpisodeResource.resourceAsStr());
@@ -104,8 +113,8 @@ public class EpisodeCommand extends AbstractShellComponent {
 
         }
 
-        List<LabeledResource> previousCharacters = ontoFacade.getCharactersFromPreviousEpisode(previousEpisodeResource.resourceAsStr());
-        List<LabeledResource> userCharacterSelection = multimatchCharacterSelector("Indiquez les personnages toujours présents dans cet épisode", previousCharacters, previousCharacters);
+        Collection<LabeledResource> previousCharacters = ontoFacade.getCharactersFromPreviousEpisode(previousEpisodeResource.resourceAsStr());
+        Collection<LabeledResource> userCharacterSelection = simpleMultimatchSelector("Indiquez les personnages toujours présents dans cet épisode", previousCharacters, previousCharacters);
 
 
         for (LabeledResource character : userCharacterSelection) {
@@ -131,6 +140,11 @@ public class EpisodeCommand extends AbstractShellComponent {
         if (askSimpleYNQuestion("Y a-t-il d'autres personnages?", false)) {
             CompletionMatcherImpl completionMatcher = new CompletionMatcherImpl();
 
+            Collection<LabeledResource> characterTypes = ontoFacade.getSelectableCharacterTypes();
+
+
+
+
             List<LabeledResource> allChars = ontoFacade.getAllCharacters();
             getTerminal().writer().println("Entrez le nom du personnage");
             LineReader reader = LineReaderBuilder.builder()
@@ -143,13 +157,18 @@ public class EpisodeCommand extends AbstractShellComponent {
             Optional<LabeledResource> userSpecifiedCharacterInList = allChars.stream().filter(lr -> lr.label().equals(characterLabel)).findFirst();
             if (userSpecifiedCharacterInList.isPresent()) {
                 setCharacterconfig(userSpecifiedCharacterInList.get(), newEpisode);
-            }
-            else {
+            } else {
+                LabeledResource characterClass = simpleSingleMatchFromList("Choissez un type de personnage", characterTypes);
                 LabeledResource newCharacter = ontoFacade.createNewCharacter(characterLabel);
                 setCharacterconfig(newCharacter, newEpisode);
-                if (askSimpleYNQuestion("Connait-on les parents de ce personnage?", false)) {
-                    List<LabeledResource> parents = multimatchCharacterSelector("Selectionner les parents de " + characterLabel, ontoFacade.getAllCharacters(), Collections.emptyList());
+                if (askSimpleYNQuestion("Connait-on déjà les parents de ce personnage?", false)) {
+                    List<LabeledResource> parents = simpleMultimatchSelector("Selectionner les parents de " + characterLabel, ontoFacade.getAllCharacters(), Collections.emptyList());
+                    parents.forEach(p -> ontoFacade.setParentForCharacter(newCharacter, p.resourceAsStr()));
                 }
+                ontoFacade.setType(newCharacter.resource(), characterClass.resource());
+                ontoFacade.setConcreteCharacter(newCharacter.resource());
+
+
             }
 
 
@@ -198,9 +217,9 @@ public class EpisodeCommand extends AbstractShellComponent {
 
     }
 
-    private List<LabeledResource> multimatchCharacterSelector(String prompt, List<LabeledResource> allCharacter, List<LabeledResource> hints) {
+    private List<LabeledResource> simpleMultimatchSelector(String prompt, Collection<LabeledResource> possibleResources, Collection<LabeledResource> hints) {
 
-        List<SelectorItem<String>> items = allCharacter.stream().map(lr -> SelectorItem.of(lr.label(), lr.resourceAsStr(), true, hints.contains(lr))).collect(Collectors.toList());
+        List<SelectorItem<String>> items = possibleResources.stream().map(lr -> SelectorItem.of(lr.label(), lr.resourceAsStr(), true, hints.contains(lr))).collect(Collectors.toList());
 
         MultiItemSelector<String, SelectorItem<String>> component = new MultiItemSelector<>(getTerminal(),
                 items, prompt, null);
@@ -209,7 +228,7 @@ public class EpisodeCommand extends AbstractShellComponent {
         MultiItemSelector.MultiItemSelectorContext<String, SelectorItem<String>> characterSelectorContext = component
                 .run(SingleItemSelector.SingleItemSelectorContext.empty());
         List<String> selectedValues = characterSelectorContext.getValues();
-        return allCharacter.stream().filter(lr -> selectedValues.contains(lr.resourceAsStr())).collect(Collectors.toList());
+        return possibleResources.stream().filter(lr -> selectedValues.contains(lr.resourceAsStr())).collect(Collectors.toList());
 
     }
 
