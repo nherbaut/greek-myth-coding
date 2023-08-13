@@ -8,10 +8,12 @@ import org.springframework.shell.component.MultiItemSelector;
 import org.springframework.shell.component.SingleItemSelector;
 import org.springframework.shell.component.StringInput;
 import org.springframework.shell.component.context.ComponentContext;
+import org.springframework.shell.component.flow.ComponentFlow;
 import org.springframework.shell.component.support.SelectorItem;
 import org.springframework.shell.standard.AbstractShellComponent;
 import org.springframework.stereotype.Component;
 import top.nextnet.greekmythcoding.cmd.exception.NoPreviousEpisodeException;
+import top.nextnet.greekmythcoding.onto.CharacterAppearance;
 import top.nextnet.greekmythcoding.onto.LabeledResource;
 import top.nextnet.greekmythcoding.onto.OntoFacade;
 
@@ -38,7 +40,7 @@ public class EpisodeCommand extends AbstractShellComponent {
                 .run(SingleItemSelector.SingleItemSelectorContext.empty());
         String bookResource = bookSelectorContext.getResultItem().flatMap(si -> Optional.ofNullable(si.getItem())).get();
 
-        List<Integer> existingEpisodes = ontoFacade.getExistingEpisodesForBookList(bookResource);
+        List<Integer> existingEpisodes = ontoFacade.getExistingEpisodesNumberForBookList(bookResource);
         Integer defaultEpisode = getNextEpisodeSuggestion(existingEpisodes);
 
         StringInput episodeSelectorComponent = new StringInput(getTerminal(), "Enter Episode number", defaultEpisode.toString());
@@ -69,14 +71,14 @@ public class EpisodeCommand extends AbstractShellComponent {
 
     private String newEpisodeFlow(String bookResource, Integer episodeNumber, Integer previousEpisodeNumber) {
         //ask for episode label
-        LabeledResource previousEpisodeResource = ontoFacade.getEpisodeFromBookAndEpisodeNumber(bookResource, previousEpisodeNumber);
+        LabeledResource previousEpisodeResource = ontoFacade.getEpisode(bookResource, previousEpisodeNumber);
         StringInput stringInput = new StringInput(getTerminal(), "Quel est le nom de l'histoire?", "");
         stringInput.setResourceLoader(getResourceLoader());
         stringInput.setTemplateExecutor(getTemplateExecutor());
         String episodeLabel = stringInput.run(ComponentContext.empty()).getResultValue();
 
         //create the episode
-        Resource newEpisode = ontoFacade.addEpisode(bookResource, episodeNumber,episodeLabel);
+        Resource newEpisode = ontoFacade.addEpisode(bookResource, episodeNumber, episodeLabel);
 
         //copy location from previous episode
         LabeledResource previousEpisodeLocation = ontoFacade.getLocationForEpisode(previousEpisodeResource.resourceAsStr());
@@ -85,34 +87,91 @@ public class EpisodeCommand extends AbstractShellComponent {
         confirmationInput.setTemplateExecutor(getTemplateExecutor());
         Boolean result = confirmationInput.run(ComponentContext.empty()).getResultValue();
         if (result) {
-            ontoFacade.setLocationForEpisode(previousEpisodeLocation.resource(),newEpisode);
+            ontoFacade.setLocationForEpisode(previousEpisodeLocation.resource(), newEpisode);
+        } else {
+            List<String> userLocationSelection = getUserSelectionForLocation(newEpisode, Arrays.asList(previousEpisodeLocation.resource()));
+            userLocationSelection.stream().forEach(s -> ontoFacade.setLocationForEpisode(s, newEpisode));
+
         }
-        else{
-            chooseLocationForEpisode(newEpisode,Arrays.asList(previousEpisodeLocation.resource()));
+
+        List<LabeledResource> previousCharacters = ontoFacade.getCharactersFromPreviousEpisode(previousEpisodeResource.resourceAsStr());
+        List<LabeledResource> userCharacterSelection = getUserSelectionFromCharacterList(previousCharacters);
+
+        for (LabeledResource character : userCharacterSelection) {
+            setCharacterconfig(character, newEpisode,previousEpisodeResource);
         }
-        return "ok" + previousEpisodeLocation.resourceAsStr();
+        ontoFacade.dumpRDFXMLToFile();
+
+        return "ok";
+    }
+
+    @Autowired
+    private ComponentFlow.Builder componentFlowBuilder;
+
+    private void setCharacterconfig(LabeledResource characterResource, Resource newEpisodeResource, LabeledResource previousEpisodeResource) {
+        CharacterAppearance appearance = ontoFacade.getCharacterAppearanceInEpisode(characterResource.resource(), previousEpisodeResource.resource());
+        List<LabeledResource> ageRanges = ontoFacade.getAgeRanges();
+        List<LabeledResource> roles = ontoFacade.getRoleRange();
+        Map<String,String> ageSelectItem = ageRanges.stream().collect(Collectors.toMap(LabeledResource::label,LabeledResource::resourceAsStr));
+        Map<String,String> roleSelectItem = roles.stream().collect(Collectors.toMap(LabeledResource::label,LabeledResource::resourceAsStr));
+
+        ComponentFlow flow = componentFlowBuilder.clone().reset()
+
+
+                .withSingleItemSelector("age")
+                .name("Specifier l'age de "+characterResource.label()+" dans cet épisode")
+                .selectItems(ageSelectItem)
+                .defaultSelect(appearance.ageRange().label())
+                .and()
+                .withSingleItemSelector("role")
+                .name("Specifier le role de "+characterResource.label()+" dans cet épisode")
+                .selectItems(roleSelectItem)
+                .defaultSelect(appearance.role().label())
+                .and()
+                .build();
+        ComponentContext results =  flow.run().getContext();
+
+                ontoFacade.addCharacterToEpisode(newEpisodeResource,characterResource.resource(),results.get("age").toString(),results.get("role").toString());
+
+    }
+
+    private List<LabeledResource> getUserSelectionFromCharacterList(List<LabeledResource> previousCharacters) {
+
+        List<SelectorItem<String>> items = previousCharacters.stream().map(lr -> SelectorItem.of(lr.label(), lr.resourceAsStr(), true, true)).collect(Collectors.toList());
+
+        MultiItemSelector<String, SelectorItem<String>> component = new MultiItemSelector<>(getTerminal(),
+                items, "Choisissez les personnages toujours présents dans cet épisode", null);
+        component.setResourceLoader(getResourceLoader());
+        component.setTemplateExecutor(getTemplateExecutor());
+        MultiItemSelector.MultiItemSelectorContext<String, SelectorItem<String>> characterSelectorContext = component
+                .run(SingleItemSelector.SingleItemSelectorContext.empty());
+        List<String> selectedValues=characterSelectorContext.getValues();
+        return previousCharacters.stream().filter(lr->selectedValues.contains(lr.resourceAsStr())).collect(Collectors.toList());
+
     }
 
     /**
      * Choose a location for the specified episode
+     *
      * @param newEpisode
      */
-    private void chooseLocationForEpisode(Resource newEpisode,List<Resource> suggestions) {
+    private List<String> getUserSelectionForLocation(Resource newEpisode, List<Resource> suggestions) {
+        //get every possible locations
         List<LabeledResource> locations = ontoFacade.getAllLocations();
-        List<SelectorItem<String>> items = locations.stream().map(lr -> SelectorItem.of(lr.label(),lr.resourceAsStr(),true, suggestions.contains(lr.resource()))).collect(Collectors.toList());
+        List<SelectorItem<String>> items = locations.stream().map(lr -> SelectorItem.of(lr.label(), lr.resourceAsStr(), true, suggestions.contains(lr.resource()))).collect(Collectors.toList());
 
         MultiItemSelector<String, SelectorItem<String>> component = new MultiItemSelector<>(getTerminal(),
-                items, "testSimple", null);
+                items, "Choisissez le(s) lieux où se déroule(nt) cet épisode", null);
         component.setResourceLoader(getResourceLoader());
         component.setTemplateExecutor(getTemplateExecutor());
         MultiItemSelector.MultiItemSelectorContext<String, SelectorItem<String>> bookSelectorContext = component
                 .run(SingleItemSelector.SingleItemSelectorContext.empty());
-        bookSelectorContext.getValues().forEach(System.out::println);
+        return bookSelectorContext.getValues();
 
     }
 
     private static Integer getPreviousEpisodeNumber(List<Integer> existingEpisodes, Integer selectedEpisodeNumber) throws NoPreviousEpisodeException {
-        return existingEpisodes.stream().sorted().filter(i -> i < selectedEpisodeNumber).reduce((first,second) -> second).orElseThrow(() -> new NoPreviousEpisodeException(selectedEpisodeNumber));
+        return existingEpisodes.stream().sorted().filter(i -> i < selectedEpisodeNumber).reduce((first, second) -> second).orElseThrow(() -> new NoPreviousEpisodeException(selectedEpisodeNumber));
     }
 
     protected static Integer getNextEpisodeSuggestion(List<Integer> existingEpisodes) {

@@ -1,19 +1,29 @@
 package top.nextnet.greekmythcoding.onto;
 
+import org.apache.commons.compress.utils.FileNameUtils;
 import org.apache.jena.arq.querybuilder.ExprFactory;
 import org.apache.jena.arq.querybuilder.SelectBuilder;
-import org.apache.jena.ontology.Individual;
+import org.apache.jena.ontology.OntClass;
 import org.apache.jena.ontology.OntModel;
 import org.apache.jena.ontology.Ontology;
 import org.apache.jena.query.*;
 import org.apache.jena.rdf.model.*;
 import org.apache.jena.util.PrintUtil;
+import org.apache.jena.vocabulary.OWL2;
+import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
+import org.semarglproject.vocab.OWL;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * Hello world!
@@ -31,7 +41,6 @@ public class OntoFacade {
             "?s rdfs:label ?label.\n" +
             "\n" +
             "}";
-
     public static final String WHO_IS_ATHEN_KING = " PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n" +
             "PREFIX owl: <http://www.w3.org/2002/07/owl#>\n" +
             "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n" +
@@ -49,7 +58,9 @@ public class OntoFacade {
             "FILTER(?episode_number=\"1\")\n" +
             "FILTER(?book=:FT)\n" +
             "} ";
-    private static final OntModel ontologyModel;
+    protected static final OntModel ontologyModel;
+    private static final SelectBuilder selectBuilderTemplate;
+    private static final String NS = "https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#";
 
     static {
         ontologyModel = ModelFactory.createOntologyModel();
@@ -58,9 +69,26 @@ public class OntoFacade {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+
+
+        selectBuilderTemplate = new SelectBuilder();
+        selectBuilderTemplate.addPrefix("owl", "http://www.w3.org/2002/07/owl#")
+                .addPrefix("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#")
+                .addPrefix("rdfs", "http://www.w3.org/2000/01/rdf-schema#")
+                .addPrefix("", NS);
     }
 
-    private static final String NS = "https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#";
+    final OntClass EPISODE = ontologyModel.getOntClass(NS + "Episode");
+    final Property HAS_BOOK = ontologyModel.getOntProperty(NS + "has_book");
+    final Property HAS_EPISODE_NUMBER = ontologyModel.getOntProperty(NS + "episode_number");
+    final Property HAS_LOCATION = ontologyModel.getOntProperty(NS + "has_location");
+    final OntClass LOCATION = ontologyModel.getOntClass(NS + "Location");
+    final Property HAS_CHARACTER = ontologyModel.getOntProperty(NS + "has_character");
+    final Property HAS_AGE_RANGE = ontologyModel.getOntProperty(NS + "has_AgeRange");
+    final Property HAS_ROLE = ontologyModel.getOntProperty(NS + "has_role");
+    final OntClass AGE_RANGE = ontologyModel.getOntClass(NS + "AgeRange");
+    final Property AGE_RANGE_RANK = ontologyModel.getProperty(NS + "has_age_range_rank");
+    final OntClass ROLE = ontologyModel.getOntClass(NS + "Role");
 
     private static Resource getResource(String name) {
         return ontologyModel.createResource(NS + name);
@@ -77,7 +105,6 @@ public class OntoFacade {
         }
     }
 
-
     public List<LabeledResource> getBooks() {
 
 
@@ -91,7 +118,7 @@ public class OntoFacade {
         List<LabeledResource> res = new ArrayList<>();
         try (QueryExecution qexec = QueryExecutionFactory.create(query, ontologyModel)) {
             ResultSet results = qexec.execSelect();
-            for (; results.hasNext(); ) {
+            while (results.hasNext()) {
                 QuerySolution soln = results.nextSolution();
                 RDFNode label = soln.get(labelID);       // Get a result variable by name.
                 RDFNode resource = soln.get(resourceID);
@@ -101,36 +128,21 @@ public class OntoFacade {
         return res;
     }
 
+    public List<Integer> getExistingEpisodesNumberForBookList(String bookResource) {
 
-    public List<Integer> getExistingEpisodesForBookList(String bookResource) {
+        return asStream(ontologyModel.listStatements(new SimpleSelector(null, HAS_BOOK, ontologyModel.getResource(bookResource))))
+                .map(s -> s.getSubject().asResource().getProperty(HAS_EPISODE_NUMBER).getInt())
+                .sorted()
+                .collect(Collectors.toList());
+    }
 
-        String GET_EPISODE_NUMBERS_FROM_BOOKS = "PREFIX owl: <http://www.w3.org/2002/07/owl#>\n" +
-                "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n" +
-                "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n" +
-                "prefix :     <https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#>\n" +
-                "SELECT distinct ?s  ?episode_number WHERE{\n" +
-                "?s rdf:type owl:NamedIndividual.\n" +
-                "?s rdf:type :Episode.\n" +
-                "?s :has_book ?book_resource.\n" +
-                "?s :episode_number ?_episode_number.\n" +
-                "bind( str(?_episode_number) as ?episode_number)\n" +
-                "}";
+    public LabeledResource getEpisode(String book, Integer episodeNumber) {
 
-        QuerySolutionMap initialBinding = new QuerySolutionMap();
-        ;
-        initialBinding.add("book_resource", ResourceFactory.createResource(bookResource));
-        var queryExecution = QueryExecutionFactory.create(GET_EPISODE_NUMBERS_FROM_BOOKS, ontologyModel, initialBinding);
-        List<Integer> res = new ArrayList<>();
-        try (QueryExecution qexec = QueryExecutionFactory.create(queryExecution.getQuery(), ontologyModel)) {
-            ResultSet results = qexec.execSelect();
-            for (; results.hasNext(); ) {
-                QuerySolution soln = results.nextSolution();
-                RDFNode episodeNumber = soln.get("episode_number");       // Get a result variable by name.
+        return asStream(ontologyModel.listStatements(new SimpleSelector(null, HAS_BOOK, ontologyModel.getResource(book))))
+                .filter(statement -> episodeNumber == statement.getSubject().getProperty(HAS_EPISODE_NUMBER).getInt())
+                .map(s -> new LabeledResource(s.getSubject().getProperty(RDFS.label).getString(), s.getSubject())).findFirst().orElse(null);
 
-                res.add(Integer.parseInt(episodeNumber.asLiteral().getString()));
-            }
-        }
-        return res;
+
     }
 
     public LabeledResource getLocationForEpisode(String episodeResource) {
@@ -146,7 +158,7 @@ public class OntoFacade {
                 .addPrefix("", NS)
                 .addVar("?LocationType")
                 .addVar("?_label")
-                .addWhere(ResourceFactory.createResource(episodeResource), ":has_location", "?l")
+                .addWhere(ontologyModel.getResource(episodeResource), ":has_location", "?l")
 
                 .addWhere("?l", "rdf:type", "?LocationType")
                 .addWhere("?LocationType", "rdfs:label", "?_label")
@@ -154,12 +166,11 @@ public class OntoFacade {
 
 
         QuerySolutionMap initialBinding = new QuerySolutionMap();
-        ;
 
         var queryExecution = QueryExecutionFactory.create(sb.build(), ontologyModel);
         try (QueryExecution qexec = QueryExecutionFactory.create(queryExecution.getQuery(), ontologyModel)) {
             ResultSet results = qexec.execSelect();
-            for (; results.hasNext(); ) {
+            while (results.hasNext()) {
                 QuerySolution soln = results.nextSolution();
                 RDFNode locationType = soln.get("?LocationType");       // Get a result variable by name.
                 return new LabeledResource(soln.get("_label").asLiteral().getString(), locationType.asResource());
@@ -169,96 +180,138 @@ public class OntoFacade {
         return null;
     }
 
-    public LabeledResource getEpisodeFromBookAndEpisodeNumber(String bookResource, Integer previousEpisodeNumber) {
-
-        SelectBuilder sb = new SelectBuilder();
-
-        ExprFactory exprF = sb.getExprFactory();
-
-
-        sb.addPrefix("owl", "http://www.w3.org/2002/07/owl#")
-                .addPrefix("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#")
-                .addPrefix("rdfs", "http://www.w3.org/2000/01/rdf-schema#")
-                .addPrefix("", NS)
-                .addVar("?location")
-                .addVar("?label")
-                .addWhere("?location", "rdfs:subClassOf*", LOCATION)
-                .addWhere("?location", "rdfs:label", "?label")
-                .addWhere("?individual", "rdf:type", "owl:NamedIndividual")
-                .addWhere("?individual", "rdf:type", "?location")
-                .setDistinct(true);
-
-
-        String QUERY_STR = "PREFIX owl: <http://www.w3.org/2002/07/owl#>\n" +
-                "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n" +
-                "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n" +
-                "prefix :     <https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#>\n" +
-                "SELECT distinct ?episode ?episode_label WHERE{\n" +
-                "?episode rdf:type owl:NamedIndividual.\n" +
-                "?episode :episode_number " + previousEpisodeNumber + " .\n" +
-                "?episode :has_book :" + ResourceFactory.createResource(bookResource).getLocalName() + ".\n" +
-                "?episode rdfs:label ?episode_label.\n" +
-                "\n" +
-                "}";
-
-        QuerySolutionMap initialBinding = new QuerySolutionMap();
-        ;
-
-        var queryExecution = QueryExecutionFactory.create(QUERY_STR, ontologyModel, initialBinding);
-        try (QueryExecution qexec = QueryExecutionFactory.create(queryExecution.getQuery(), ontologyModel)) {
-            ResultSet results = qexec.execSelect();
-            for (; results.hasNext(); ) {
-                QuerySolution soln = results.nextSolution();
-                RDFNode rdfNode = soln.get("episode");       // Get a result variable by name.
-                return new LabeledResource(soln.get("episode_label").asLiteral().getString(), rdfNode.asResource());
-
-            }
-        }
-        return null;
-    }
-
-    final Resource EPISODE = ontologyModel.createResource(NS + "Episode");
-    final Property HAS_BOOK = ontologyModel.createProperty(NS + "has_book");
-    final Property HAS_LOCATION = ontologyModel.createProperty(NS + "has_location");
-    final Property LOCATION = ontologyModel.createProperty(NS + "Location");
-
     public Resource addEpisode(String bookresource, Integer episodeNumber, String episodeLabel) {
-        Resource newEpisode = ResourceFactory.createResource(bookresource + "_" + String.format("%02d", episodeNumber));
-        Individual i = ontologyModel.createIndividual(NS + newEpisode.getLocalName(), newEpisode);
-        i.addRDFType(EPISODE);
-        i.addProperty(RDFS.label, episodeLabel);
-        i.addProperty(HAS_BOOK, ResourceFactory.createResource(bookresource));
+        Resource newEpisode = ontologyModel.createResource(bookresource + "_" + String.format("%02d", episodeNumber));
+
+        newEpisode.addProperty(RDF.type, EPISODE);
+        newEpisode.addProperty(RDFS.label, episodeLabel);
+        newEpisode.addProperty(RDF.type, OWL.NAMED_INDIVIDUAL);
+        newEpisode.addProperty(HAS_BOOK, ResourceFactory.createResource(bookresource));
+        newEpisode.addLiteral(HAS_EPISODE_NUMBER, ResourceFactory.createTypedLiteral(episodeNumber));
         return newEpisode;
     }
 
-    public void setLocationForEpisode(Resource location, Resource episode) {
-        ontologyModel.add(episode, HAS_LOCATION, location);
+    public void setLocationForEpisode(String location, Resource episode) {
+        setLocationForEpisode(ontologyModel.createResource(location), episode);
+    }
+
+    public void setLocationForEpisode(Resource locationClass, Resource episode) {
+        Resource newLocation = ontologyModel.createResource(NS + episode.getLocalName() + "_" + locationClass.getLocalName());
+        newLocation.addProperty(RDF.type, locationClass);
+        ontologyModel.add(episode, HAS_LOCATION, newLocation);
     }
 
     public List<LabeledResource> getAllLocations() {
+        return null;
+    }
+
+    public void dumpRDFXMLtoConsole() {
+        ontologyModel.write(new PrintStream(System.out));
+    }
+
+    public void dumpRDFXMLToFile() {
+        try {
+            ontologyModel.write(new FileWriter("output.owl"));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public List<LabeledResource> getCharactersFromPreviousEpisode(String previousEpisode) {
+        Resource previousEpisodeResource = ontologyModel.getOntResource(previousEpisode);
+
+        return asStream(previousEpisodeResource.listProperties(HAS_CHARACTER))
+                .map(stm -> stm.getObject().asResource())
+                .map(r -> asStream(r.listProperties(RDF.type)))
+                .flatMap(Function.identity())
+                .filter(s -> !s.getObject().equals(OWL2.NamedIndividual))//individuals have 2 types (NI and the Class) we take only the ontology-defined class
+                .filter(s -> s.getObject().asResource().getProperty(RDFS.label) != null)
+                .map(s -> new LabeledResource(s.getObject().asResource().getProperty(RDFS.label).getLiteral().getString(), s.getObject().asResource()))
+                .collect(Collectors.toList());
 
 
-        SelectBuilder sb = new SelectBuilder();
+    }
 
-        ExprFactory exprF = sb.getExprFactory();
+    private static <T> Stream<T> asStream(Iterator<T> itr) {
+        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(itr, Spliterator.IMMUTABLE), false).collect(Collectors.toList()).stream();
+    }
 
+    public CharacterAppearance getCharacterAppearanceInEpisode(Resource character, Resource previousEpisode) {
+        SelectBuilder sb = selectBuilderTemplate.clone();
+        sb.addVar("?age_range")
+                .addVar("?role")
+                .addWhere("?character_episode", "rdf:type", character)
+                .addWhere(previousEpisode, ":has_character", "?character_episode")
+                .addWhere("?character_episode", HAS_AGE_RANGE, "?age_range")
+                .addWhere("?character_episode", HAS_ROLE, "?role");
+        var queryExecution = QueryExecutionFactory.create(sb.build(), ontologyModel);
+        return asStream(queryExecution.execSelect())
+                .map(qs -> new CharacterAppearance(new LabeledResource(qs.get("age_range").asResource().getProperty(RDFS.label).getString(), qs.get("age_range").asResource()), new LabeledResource(qs.get("role").asResource().getProperty(RDFS.label).getString(), qs.get("role").asResource())))
+                .findFirst().orElseThrow(() -> new RuntimeException("No Such Character " + character + "in Episode " + previousEpisode.toString()));
+    }
 
-        sb.addPrefix("owl", "http://www.w3.org/2002/07/owl#")
-                .addPrefix("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#")
-                .addPrefix("rdfs", "http://www.w3.org/2000/01/rdf-schema#")
-                .addPrefix("", NS)
-                .addVar("?location")
-                .addVar("?label")
-                .addWhere("?location", "rdfs:subClassOf*", LOCATION)
-                .addWhere("?location", "rdfs:label", "?label")
-                .addWhere("?individual", "rdf:type", "owl:NamedIndividual")
-                .addWhere("?individual", "rdf:type", "?location")
-                .setDistinct(true);
+    public List<LabeledResource> getAgeRanges() {
+        SelectBuilder sb = selectBuilderTemplate.clone();
+        sb.addVar("?age_range_item")
+                .addWhere("?age_range_item", RDF.type, AGE_RANGE)
+                .addWhere("?age_range_item", RDF.type, OWL2.NamedIndividual);
+        var queryExecution = QueryExecutionFactory.create(sb.build(), ontologyModel);
+        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(queryExecution.execSelect(), Spliterator.IMMUTABLE), false)
+                .sorted(new Comparator<QuerySolution>() {
+                    @Override
+                    public int compare(QuerySolution t0, QuerySolution t1) {
+                        Integer t0Rank = t0.get("age_range_item").asResource().getProperty(AGE_RANGE_RANK).getInt();
+                        Integer t1Rank = t1.get("age_range_item").asResource().getProperty(AGE_RANGE_RANK).getInt();
+                        return t0Rank.compareTo(t1Rank);
+                    }
+                })
+                .map(qs -> new LabeledResource(qs.get("age_range_item").asResource().getProperty(RDFS.label).getLiteral().getString(), qs.get("age_range_item").asResource()))
+                .collect(Collectors.toList());
+    }
 
-
-        Query q = sb.build();
-        return this.getLabeledResources(q, "label", "location");
+    public List<LabeledResource> getRoleRange() {
+        SelectBuilder sb = selectBuilderTemplate.clone();
+        sb.addVar("?role_item")
+                .addWhere("?role_item", RDF.type, ROLE)
+                .addWhere("?role_item", RDF.type, OWL2.NamedIndividual);
+        var queryExecution = QueryExecutionFactory.create(sb.build(), ontologyModel);
+        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(queryExecution.execSelect(), Spliterator.IMMUTABLE), false)
+                .sorted(new Comparator<QuerySolution>() {
+                    @Override
+                    public int compare(QuerySolution t0, QuerySolution t1) {
+                        String roleDescr0 = t0.get("role_item").asResource().getProperty(RDFS.label).getLiteral().toString();
+                        String roleDescr1 = t1.get("role_item").asResource().getProperty(RDFS.label).getLiteral().toString();
+                        return roleDescr0.compareTo(roleDescr1);
+                    }
+                })
+                .map(qs -> new LabeledResource(qs.get("role_item").asResource().getProperty(RDFS.label).getLiteral().getString(), qs.get("role_item").asResource()))
+                .collect(Collectors.toList());
     }
 
 
+    public Resource addCharacterToEpisode(Resource newEpisodeResource, Resource character, String ageResourceStr, String roleResourceStr) {
+
+        Resource newCharacter = ontologyModel.createResource(newEpisodeResource.getURI() + "_" + character.getLocalName());
+
+        newCharacter.addProperty(HAS_AGE_RANGE, ontologyModel.getResource(ageResourceStr));
+        newCharacter.addProperty(HAS_ROLE, ontologyModel.getResource(roleResourceStr));
+        String appearangeLabel = "apparition de " + character.getProperty(RDFS.label).getString() + " (" + ontologyModel.getResource(ageResourceStr).getProperty(RDFS.label).getString() + ") en tant que " + ontologyModel.getResource(roleResourceStr).getProperty(RDFS.label).getString() + " dans l'épisode " + newEpisodeResource.getProperty(RDFS.label).getString();
+        newCharacter.addProperty(RDFS.label, appearangeLabel);
+        newCharacter.addProperty(RDF.type,character);
+        newEpisodeResource.addProperty(HAS_CHARACTER, newCharacter);
+        return newCharacter;
+    }
+
+    public void save() {
+        Path originalFile = Path.of("/home/nherbaut/Desktop/greek-myth-coding/src/main/resources/owl/greek-mythology-stories.owl");
+        Path backupPath = Path.of(FileNameUtils.getBaseName(originalFile) + "_" + System.currentTimeMillis() + "." + FileNameUtils.getExtension(originalFile));
+        try {
+            Files.copy(originalFile, backupPath, StandardCopyOption.COPY_ATTRIBUTES);
+            try (Writer writer = new FileWriter(originalFile.toFile())) {
+                ontologyModel.write(writer);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }
