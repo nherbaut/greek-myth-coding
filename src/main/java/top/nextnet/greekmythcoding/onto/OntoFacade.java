@@ -12,7 +12,6 @@ import org.apache.jena.util.PrintUtil;
 import org.apache.jena.vocabulary.OWL2;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
-import org.semarglproject.vocab.OWL;
 import org.springframework.stereotype.Component;
 
 import java.io.*;
@@ -185,7 +184,7 @@ public class OntoFacade {
 
         newEpisode.addProperty(RDF.type, EPISODE);
         newEpisode.addProperty(RDFS.label, episodeLabel);
-        newEpisode.addProperty(RDF.type, OWL.NAMED_INDIVIDUAL);
+        newEpisode.addProperty(RDF.type, OWL2.NamedIndividual);
         newEpisode.addProperty(HAS_BOOK, ResourceFactory.createResource(bookresource));
         newEpisode.addLiteral(HAS_EPISODE_NUMBER, ResourceFactory.createTypedLiteral(episodeNumber));
         return newEpisode;

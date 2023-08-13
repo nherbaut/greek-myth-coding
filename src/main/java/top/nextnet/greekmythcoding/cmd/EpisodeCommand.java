@@ -1,6 +1,13 @@
 package top.nextnet.greekmythcoding.cmd;
 
+import org.apache.commons.io.Charsets;
 import org.apache.jena.rdf.model.Resource;
+import org.jline.reader.LineReader;
+import org.jline.reader.LineReaderBuilder;
+import org.jline.reader.impl.DefaultParser;
+import org.jline.terminal.Terminal;
+import org.jline.terminal.TerminalBuilder;
+import org.jline.utils.InfoCmp;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.shell.command.annotation.Command;
 import org.springframework.shell.component.ConfirmationInput;
@@ -17,6 +24,7 @@ import top.nextnet.greekmythcoding.onto.CharacterAppearance;
 import top.nextnet.greekmythcoding.onto.LabeledResource;
 import top.nextnet.greekmythcoding.onto.OntoFacade;
 
+import java.nio.charset.Charset;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -72,10 +80,16 @@ public class EpisodeCommand extends AbstractShellComponent {
     private String newEpisodeFlow(String bookResource, Integer episodeNumber, Integer previousEpisodeNumber) {
         //ask for episode label
         LabeledResource previousEpisodeResource = ontoFacade.getEpisode(bookResource, previousEpisodeNumber);
-        StringInput stringInput = new StringInput(getTerminal(), "Quel est le nom de l'histoire?", "");
-        stringInput.setResourceLoader(getResourceLoader());
-        stringInput.setTemplateExecutor(getTemplateExecutor());
-        String episodeLabel = stringInput.run(ComponentContext.empty()).getResultValue();
+
+        LineReader reader = LineReaderBuilder.builder()
+                .terminal(getTerminal())
+
+                .parser(new DefaultParser())
+                .variable(LineReader.SECONDARY_PROMPT_PATTERN, "%M%P > ")
+                .variable(LineReader.INDENTATION, 2)
+                .option(LineReader.Option.INSERT_BRACKET, true)
+                .build();
+        String episodeLabel = reader.readLine();
 
         //create the episode
         Resource newEpisode = ontoFacade.addEpisode(bookResource, episodeNumber, episodeLabel);
