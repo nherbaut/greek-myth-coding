@@ -50,4 +50,10 @@ class OntoFacadeTest {
         OntoFacade facade = new OntoFacade();
         System.out.println(facade.getExistingEpisodesNumberForBookList("https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#FT").stream().map(i -> i.toString()).collect(Collectors.joining(" ")));
     }
+
+    @Test
+    void getAllChar(){
+        OntoFacade facade = new OntoFacade();
+        System.out.println(facade.getAllCharacters().stream().map(lr -> lr.label()).collect(Collectors.joining(" ")));
+    }
 }

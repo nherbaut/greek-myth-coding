@@ -80,8 +80,11 @@ public class OntoFacade {
     final OntClass EPISODE = ontologyModel.getOntClass(NS + "Episode");
     final Property HAS_BOOK = ontologyModel.getOntProperty(NS + "has_book");
     final Property HAS_EPISODE_NUMBER = ontologyModel.getOntProperty(NS + "episode_number");
+    final Property HAS_PARENT = ontologyModel.getOntProperty(NS + "has_parent");
+
     final Property HAS_LOCATION = ontologyModel.getOntProperty(NS + "has_location");
     final OntClass LOCATION = ontologyModel.getOntClass(NS + "Location");
+    final OntClass CHARACTER = ontologyModel.getOntClass(NS + "Character");
     final Property HAS_CHARACTER = ontologyModel.getOntProperty(NS + "has_character");
     final Property HAS_AGE_RANGE = ontologyModel.getOntProperty(NS + "has_AgeRange");
     final Property HAS_ROLE = ontologyModel.getOntProperty(NS + "has_role");
@@ -296,7 +299,7 @@ public class OntoFacade {
         newCharacter.addProperty(HAS_ROLE, ontologyModel.getResource(roleResourceStr));
         String appearangeLabel = "apparition de " + character.getProperty(RDFS.label).getString() + " (" + ontologyModel.getResource(ageResourceStr).getProperty(RDFS.label).getString() + ") en tant que " + ontologyModel.getResource(roleResourceStr).getProperty(RDFS.label).getString() + " dans l'épisode " + newEpisodeResource.getProperty(RDFS.label).getString();
         newCharacter.addProperty(RDFS.label, appearangeLabel);
-        newCharacter.addProperty(RDF.type,character);
+        newCharacter.addProperty(RDF.type, character);
         newEpisodeResource.addProperty(HAS_CHARACTER, newCharacter);
         return newCharacter;
     }
@@ -312,5 +315,21 @@ public class OntoFacade {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public List<LabeledResource> getAllCharacters() {
+        return asStream(ontologyModel.listStatements(null, RDFS.subClassOf, CHARACTER)).filter(stmt -> stmt.getSubject().getProperty(RDFS.label) != null).map(LabeledResource::fromStatementSubject).collect(Collectors.toList());
+    }
+
+    public LabeledResource createNewCharacter(String characterLabel) {
+        Resource newChar = ontologyModel.createResource(NS+characterLabel.replace(" ", "_"));
+        newChar.addProperty(RDF.type, CHARACTER);
+        newChar.addProperty(RDFS.label, characterLabel);
+        return new LabeledResource(characterLabel, newChar);
+    }
+
+    public void setParentForCharacter(LabeledResource character, String parentResourceIRI) {
+
+        ontologyModel.createStatement(character.resource(), HAS_PARENT, ontologyModel.getOntClass(parentResourceIRI));
     }
 }

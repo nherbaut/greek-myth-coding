@@ -1,13 +1,11 @@
 package top.nextnet.greekmythcoding.cmd;
 
-import org.apache.commons.io.Charsets;
 import org.apache.jena.rdf.model.Resource;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
+import org.jline.reader.impl.CompletionMatcherImpl;
 import org.jline.reader.impl.DefaultParser;
-import org.jline.terminal.Terminal;
-import org.jline.terminal.TerminalBuilder;
-import org.jline.utils.InfoCmp;
+import org.jline.reader.impl.completer.StringsCompleter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.shell.command.annotation.Command;
 import org.springframework.shell.component.ConfirmationInput;
@@ -24,7 +22,6 @@ import top.nextnet.greekmythcoding.onto.CharacterAppearance;
 import top.nextnet.greekmythcoding.onto.LabeledResource;
 import top.nextnet.greekmythcoding.onto.OntoFacade;
 
-import java.nio.charset.Charset;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -89,6 +86,7 @@ public class EpisodeCommand extends AbstractShellComponent {
                 .variable(LineReader.INDENTATION, 2)
                 .option(LineReader.Option.INSERT_BRACKET, true)
                 .build();
+        getTerminal().writer().println("Quel est le titre de l'épisode?");
         String episodeLabel = reader.readLine();
 
         //create the episode
@@ -96,10 +94,8 @@ public class EpisodeCommand extends AbstractShellComponent {
 
         //copy location from previous episode
         LabeledResource previousEpisodeLocation = ontoFacade.getLocationForEpisode(previousEpisodeResource.resourceAsStr());
-        ConfirmationInput confirmationInput = new ConfirmationInput(getTerminal(), "is " + previousEpisodeLocation.label() + " still the place where the story is happenning?");
-        confirmationInput.setResourceLoader(getResourceLoader());
-        confirmationInput.setTemplateExecutor(getTemplateExecutor());
-        Boolean result = confirmationInput.run(ComponentContext.empty()).getResultValue();
+
+        Boolean result = askSimpleYNQuestion("L'histoire se passe-t-elle toujours à  " + previousEpisodeLocation.label(), true);
         if (result) {
             ontoFacade.setLocationForEpisode(previousEpisodeLocation.resource(), newEpisode);
         } else {
@@ -109,58 +105,111 @@ public class EpisodeCommand extends AbstractShellComponent {
         }
 
         List<LabeledResource> previousCharacters = ontoFacade.getCharactersFromPreviousEpisode(previousEpisodeResource.resourceAsStr());
-        List<LabeledResource> userCharacterSelection = getUserSelectionFromCharacterList(previousCharacters);
+        List<LabeledResource> userCharacterSelection = multimatchCharacterSelector("Indiquez les personnages toujours présents dans cet épisode", previousCharacters, previousCharacters);
+
 
         for (LabeledResource character : userCharacterSelection) {
-            setCharacterconfig(character, newEpisode,previousEpisodeResource);
+            setCharacterconfig(character, newEpisode, previousEpisodeResource);
         }
-        ontoFacade.dumpRDFXMLToFile();
+
+        while (newCharacterFlow(newEpisode)) {
+
+        }
 
         return "ok";
     }
 
+    private Boolean askSimpleYNQuestion(String prompt, boolean defaultToYes) {
+        ConfirmationInput confirmationInput = new ConfirmationInput(getTerminal(), prompt, defaultToYes);
+
+        confirmationInput.setResourceLoader(getResourceLoader());
+        confirmationInput.setTemplateExecutor(getTemplateExecutor());
+        return confirmationInput.run(ComponentContext.empty()).getResultValue();
+    }
+
+    private boolean newCharacterFlow(Resource newEpisode) {
+        if (askSimpleYNQuestion("Y a-t-il d'autres personnages?", false)) {
+            CompletionMatcherImpl completionMatcher = new CompletionMatcherImpl();
+
+            List<LabeledResource> allChars = ontoFacade.getAllCharacters();
+            getTerminal().writer().println("Entrez le nom du personnage");
+            LineReader reader = LineReaderBuilder.builder()
+                    .terminal(getTerminal())
+                    .completer(new StringsCompleter(allChars.stream().map(lr ->
+                            lr.label()).collect(Collectors.toList())))
+                    .parser(new DefaultParser())
+                    .build();
+            String characterLabel = reader.readLine().trim();
+            Optional<LabeledResource> userSpecifiedCharacterInList = allChars.stream().filter(lr -> lr.label().equals(characterLabel)).findFirst();
+            if (userSpecifiedCharacterInList.isPresent()) {
+                setCharacterconfig(userSpecifiedCharacterInList.get(), newEpisode);
+            }
+            else {
+                LabeledResource newCharacter = ontoFacade.createNewCharacter(characterLabel);
+                setCharacterconfig(newCharacter, newEpisode);
+                if (askSimpleYNQuestion("Connait-on les parents de ce personnage?", false)) {
+                    List<LabeledResource> parents = multimatchCharacterSelector("Selectionner les parents de " + characterLabel, ontoFacade.getAllCharacters(), Collections.emptyList());
+                }
+            }
+
+
+            return true;
+        }
+        return false;
+    }
+
+
     @Autowired
     private ComponentFlow.Builder componentFlowBuilder;
 
-    private void setCharacterconfig(LabeledResource characterResource, Resource newEpisodeResource, LabeledResource previousEpisodeResource) {
-        CharacterAppearance appearance = ontoFacade.getCharacterAppearanceInEpisode(characterResource.resource(), previousEpisodeResource.resource());
+    private void setCharacterconfig(LabeledResource characterResource, Resource episodeResource) {
+        setCharacterconfig(characterResource, episodeResource, null);
+    }
+
+    private void setCharacterconfig(LabeledResource characterResource, Resource episodeResource, LabeledResource hintEpisodeResource) {
+        CharacterAppearance appearance;
+        if (hintEpisodeResource != null) {
+            appearance = ontoFacade.getCharacterAppearanceInEpisode(characterResource.resource(), hintEpisodeResource.resource());
+        } else {
+            appearance = CharacterAppearance.getDefault();
+        }
         List<LabeledResource> ageRanges = ontoFacade.getAgeRanges();
         List<LabeledResource> roles = ontoFacade.getRoleRange();
-        Map<String,String> ageSelectItem = ageRanges.stream().collect(Collectors.toMap(LabeledResource::label,LabeledResource::resourceAsStr));
-        Map<String,String> roleSelectItem = roles.stream().collect(Collectors.toMap(LabeledResource::label,LabeledResource::resourceAsStr));
+        Map<String, String> ageSelectItem = ageRanges.stream().collect(Collectors.toMap(LabeledResource::label, LabeledResource::resourceAsStr));
+        Map<String, String> roleSelectItem = roles.stream().collect(Collectors.toMap(LabeledResource::label, LabeledResource::resourceAsStr));
 
         ComponentFlow flow = componentFlowBuilder.clone().reset()
 
 
                 .withSingleItemSelector("age")
-                .name("Specifier l'age de "+characterResource.label()+" dans cet épisode")
+                .name("Specifier l'age de " + characterResource.label() + " dans cet épisode")
                 .selectItems(ageSelectItem)
                 .defaultSelect(appearance.ageRange().label())
                 .and()
                 .withSingleItemSelector("role")
-                .name("Specifier le role de "+characterResource.label()+" dans cet épisode")
+                .name("Specifier le role de " + characterResource.label() + " dans cet épisode")
                 .selectItems(roleSelectItem)
                 .defaultSelect(appearance.role().label())
                 .and()
                 .build();
-        ComponentContext results =  flow.run().getContext();
+        ComponentContext results = flow.run().getContext();
 
-                ontoFacade.addCharacterToEpisode(newEpisodeResource,characterResource.resource(),results.get("age").toString(),results.get("role").toString());
+        ontoFacade.addCharacterToEpisode(episodeResource, characterResource.resource(), results.get("age").toString(), results.get("role").toString());
 
     }
 
-    private List<LabeledResource> getUserSelectionFromCharacterList(List<LabeledResource> previousCharacters) {
+    private List<LabeledResource> multimatchCharacterSelector(String prompt, List<LabeledResource> allCharacter, List<LabeledResource> hints) {
 
-        List<SelectorItem<String>> items = previousCharacters.stream().map(lr -> SelectorItem.of(lr.label(), lr.resourceAsStr(), true, true)).collect(Collectors.toList());
+        List<SelectorItem<String>> items = allCharacter.stream().map(lr -> SelectorItem.of(lr.label(), lr.resourceAsStr(), true, hints.contains(lr))).collect(Collectors.toList());
 
         MultiItemSelector<String, SelectorItem<String>> component = new MultiItemSelector<>(getTerminal(),
-                items, "Choisissez les personnages toujours présents dans cet épisode", null);
+                items, prompt, null);
         component.setResourceLoader(getResourceLoader());
         component.setTemplateExecutor(getTemplateExecutor());
         MultiItemSelector.MultiItemSelectorContext<String, SelectorItem<String>> characterSelectorContext = component
                 .run(SingleItemSelector.SingleItemSelectorContext.empty());
-        List<String> selectedValues=characterSelectorContext.getValues();
-        return previousCharacters.stream().filter(lr->selectedValues.contains(lr.resourceAsStr())).collect(Collectors.toList());
+        List<String> selectedValues = characterSelectorContext.getValues();
+        return allCharacter.stream().filter(lr -> selectedValues.contains(lr.resourceAsStr())).collect(Collectors.toList());
 
     }
 
