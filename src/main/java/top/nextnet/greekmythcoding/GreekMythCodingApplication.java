@@ -17,12 +17,10 @@ import org.jline.reader.impl.completer.StringsCompleter;
 import org.jline.terminal.*;
 import org.jline.utils.*;
 import org.jline.utils.InfoCmp.Capability;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.Banner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.shell.command.annotation.CommandScan;
-import top.nextnet.greekmythcoding.cmd.EpisodeCommand;
 
 import java.io.IOException;
 import java.nio.file.Paths;

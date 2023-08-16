@@ -13,6 +13,9 @@ import org.apache.jena.vocabulary.OWL2;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
 import org.springframework.stereotype.Component;
+import top.nextnet.greekmythcoding.Utils;
+import top.nextnet.greekmythcoding.cmd.LabeledCharacterAppearance;
+
 
 import java.io.*;
 import java.nio.file.Files;
@@ -82,6 +85,9 @@ public class OntoFacade {
     final Property HAS_EPISODE_NUMBER = ontologyModel.getOntProperty(NS + "episode_number");
 
     final OntClass CONCRETE_CHARACTER = ontologyModel.getOntClass(NS + "ConcreteCharacter");
+    final OntClass CONCRETE_CONCEPT = ontologyModel.getOntClass(NS + "ConcreteConcept");
+    final OntClass CONCRETE_LOCATION = ontologyModel.getOntClass(NS + "ConcreteLocation");
+
 
     final Property HAS_PARENT = ontologyModel.getOntProperty(NS + "has_parent");
 
@@ -142,32 +148,30 @@ public class OntoFacade {
                 .collect(Collectors.toList());
     }
 
-    public LabeledResource getEpisode(LabeledResource book, Integer episodeNumber) {
+    public LabeledResource getEpisode(LabeledObject<Resource> book, Integer episodeNumber) {
 
         return asStream(ontologyModel.listStatements(new SimpleSelector(null, HAS_BOOK, book.resource())))
                 .filter(statement -> episodeNumber == statement.getSubject().getProperty(HAS_EPISODE_NUMBER).getInt())
-                .map(s -> new LabeledResource(s.getSubject().getProperty(RDFS.label).getString(), s.getSubject())).findFirst().orElse(null);
+                .map(s -> new LabeledResource(s.getSubject().getProperty(RDFS.label).getString(), s.getSubject())).findFirst().orElse(LabeledResource.getDefault());
 
 
     }
 
-    public LabeledResource getLocationForEpisode(String episodeResource) {
+    public LabeledResource getLocationForEpisode(LabeledResource episodeResource) {
 
-        SelectBuilder sb = new SelectBuilder();
-
-        ExprFactory exprF = sb.getExprFactory();
+        SelectBuilder sb = selectBuilderTemplate.clone();
 
 
         sb.addPrefix("owl", "http://www.w3.org/2002/07/owl#")
                 .addPrefix("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#")
                 .addPrefix("rdfs", "http://www.w3.org/2000/01/rdf-schema#")
                 .addPrefix("", NS)
-                .addVar("?LocationType")
-                .addVar("?_label")
-                .addWhere(ontologyModel.getResource(episodeResource), ":has_location", "?l")
+                .addVar("?location")
 
-                .addWhere("?l", "rdf:type", "?LocationType")
-                .addWhere("?LocationType", "rdfs:label", "?_label")
+                .addWhere(episodeResource.resource(), ":has_location", "?l")
+                .addWhere("?l", RDF.type, "?LocationType")
+                .addWhere("?LocationType", RDF.type, "?location")
+                .addWhere("?location", "rdfs:subClassOf*", CONCRETE_CONCEPT)
                 .setDistinct(true);
 
 
@@ -178,8 +182,8 @@ public class OntoFacade {
             ResultSet results = qexec.execSelect();
             while (results.hasNext()) {
                 QuerySolution soln = results.nextSolution();
-                RDFNode locationType = soln.get("?LocationType");       // Get a result variable by name.
-                return new LabeledResource(soln.get("_label").asLiteral().getString(), locationType.asResource());
+                RDFNode locationType = soln.get("?location");       // Get a result variable by name.
+                return new LabeledResource(locationType.asResource().getProperty(RDFS.label).getString(), locationType.asResource());
 
             }
         }
@@ -204,11 +208,33 @@ public class OntoFacade {
     public void setLocationForEpisode(Resource locationClass, Resource episode) {
         Resource newLocation = ontologyModel.createResource(NS + episode.getLocalName() + "_" + locationClass.getLocalName());
         newLocation.addProperty(RDF.type, locationClass);
+        newLocation.addProperty(RDFS.label, String.format("%s, où se déroule l'épisode %s", locationClass.getLocalName(), getLabel(episode)));
         ontologyModel.add(episode, HAS_LOCATION, newLocation);
     }
 
-    public List<LabeledResource> getAllLocations() {
-        return null;
+    public Collection<LabeledResource> getAllLocations() {
+        return getPunnedResources(LOCATION);
+
+    }
+
+    public Collection<LabeledResource> getAllCharacter() {
+        return getPunnedResources(CHARACTER);
+    }
+
+    public Collection<LabeledResource> getPunnedResources(OntClass klass) {
+        SelectBuilder sb = selectBuilderTemplate.clone();
+        sb.addVar("?x")
+                .addWhere("?x", RDFS.subClassOf, klass)
+                .addWhere("?x", RDF.type, OWL2.NamedIndividual)
+                .addWhere("?x", RDF.type, OWL2.Class)
+                .addWhere("?x", RDFS.subClassOf, CONCRETE_CONCEPT);
+
+        return asStream(QueryExecutionFactory.create(sb.build(), ontologyModel).execSelect())
+                .map(s -> s.get("x"))
+                .filter(s -> s.asResource().getProperty(RDFS.label) != null)
+                .map(s -> new LabeledResource(s.asResource().getProperty(RDFS.label).getString(), s.asResource()))
+                .collect(Collectors.toList());
+
     }
 
     public void dumpRDFXMLtoConsole() {
@@ -223,15 +249,59 @@ public class OntoFacade {
         }
     }
 
-    public Collection<LabeledResource> getCharactersFromPreviousEpisode(String previousEpisode) {
+    public Collection<LabeledResource> getAllLocationTypes() {
         SelectBuilder sb = selectBuilderTemplate.clone();
-        sb.addVar("?t")
+
+
+        ExprFactory factory = new ExprFactory();
+
+        sb.addVar("?x").setDistinct(true)
+                .addWhere("?x", "rdfs:subClassOf*", LOCATION)
+                .addWhere("?x", RDF.type, OWL2.NamedIndividual)
+                .addWhere("?x", RDF.type, OWL2.Class)
+                .addFilter(factory.notexists(selectBuilderTemplate.
+                        addWhere("?x", "rdfs:subClassOf*", CONCRETE_CONCEPT)
+                        .addWhere("?y", "rdfs:subClassOf", "?x")
+                        .addWhere("?y", RDF.type, OWL2.Class)));
+        QueryExecution qe = QueryExecutionFactory.create(sb.build(), ontologyModel);
+
+
+        return asStream(qe.execSelect())
+                .map(qr -> qr.get("x").asResource())
+                .filter(r -> r.getProperty(RDFS.label) != null)
+                .map(r -> new LabeledResource(r.getProperty(RDFS.label).getString(), r))
+                .collect(Collectors.toList());
+
+
+    }
+
+    public Collection<LabeledCharacterAppearance> getCharactersIndividualsFromPreviousEpisode(String previousEpisode) {
+        SelectBuilder sb = selectBuilderTemplate.clone();
+        sb.addVar("?t").
+                addVar("?c").
+                addVar("?age_range").
+                addVar("?role")
                 .setDistinct(true)
                 .addWhere(ontologyModel.getResource(previousEpisode), HAS_CHARACTER, "?c")
                 .addWhere("?c", RDF.type, "?t")
+                .addWhere("?c", HAS_AGE_RANGE, "?age_range")
+                .addWhere("?c", HAS_ROLE, "?role")
                 .addWhere("?t", RDF.type, "<https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#ConcreteCharacter>")
                 .build();
-        return asStream(QueryExecutionFactory.create(sb.build(), ontologyModel).execSelect()).map(qs -> qs.get("t").asResource()).map(LabeledResource::fromRessource).collect(Collectors.toSet());
+        return asStream(QueryExecutionFactory.create(sb.build(), ontologyModel)
+                .execSelect())
+                .map(qs -> new LabeledCharacterAppearance(String.format("%s (%s, %s)", getLabel(qs.get("t")), getLabel(qs.get("age_range")), getLabel(qs.get("role"))), new CharacterAppearance.Builder().withCharacter(qs.get("t")).withAgeRange(qs.get("age_range")).withRole(qs.get("role")).build()))
+                .collect(Collectors.toSet());
+
+    }
+
+    private static String getLabel(RDFNode res) {
+        Statement labelProp = res.asResource().getProperty(RDFS.label);
+        if (labelProp != null) {
+            return labelProp.getString();
+        } else {
+            return "UNKNOWN";
+        }
     }
 
 
@@ -243,13 +313,17 @@ public class OntoFacade {
         SelectBuilder sb = selectBuilderTemplate.clone();
         sb.addVar("?age_range")
                 .addVar("?role")
+                .addVar("?age_range")
                 .addWhere("?character_episode", "rdf:type", character)
                 .addWhere(previousEpisode, ":has_character", "?character_episode")
                 .addWhere("?character_episode", HAS_AGE_RANGE, "?age_range")
                 .addWhere("?character_episode", HAS_ROLE, "?role");
         var queryExecution = QueryExecutionFactory.create(sb.build(), ontologyModel);
         return asStream(queryExecution.execSelect())
-                .map(qs -> new CharacterAppearance(new LabeledResource(qs.get("age_range").asResource().getProperty(RDFS.label).getString(), qs.get("age_range").asResource()), new LabeledResource(qs.get("role").asResource().getProperty(RDFS.label).getString(), qs.get("role").asResource())))
+                .map(qs ->
+                        new CharacterAppearance(LabeledResource.fromRessource(character),
+                                LabeledResource.fromRessource(qs.get("age_range").asResource()),
+                                LabeledResource.fromRessource(qs.get("role").asResource())))
                 .findFirst().orElseThrow(() -> new RuntimeException("No Such Character " + character + "in Episode " + previousEpisode.toString()));
     }
 
@@ -292,13 +366,20 @@ public class OntoFacade {
     }
 
 
-    public Resource addCharacterToEpisode(Resource newEpisodeResource, Resource character, String ageResourceStr, String roleResourceStr) {
+    public Resource addCharacterToEpisode(String newEpisodeResource, String character, String ageResourceStr, String roleResourceStr) {
+        return addCharacterToEpisode(ontologyModel.getResource(newEpisodeResource),
+                ontologyModel.getResource(character),
+                ontologyModel.getResource(ageResourceStr),
+                ontologyModel.getResource(roleResourceStr));
+    }
+
+    public Resource addCharacterToEpisode(Resource newEpisodeResource, Resource character, Resource ageResourceStr, Resource roleResourceStr) {
 
         Resource newCharacter = ontologyModel.createResource(newEpisodeResource.getURI() + "_" + character.getLocalName());
 
-        newCharacter.addProperty(HAS_AGE_RANGE, ontologyModel.getResource(ageResourceStr));
-        newCharacter.addProperty(HAS_ROLE, ontologyModel.getResource(roleResourceStr));
-        String appearangeLabel = "apparition de " + character.getProperty(RDFS.label).getString() + " (" + ontologyModel.getResource(ageResourceStr).getProperty(RDFS.label).getString() + ") en tant que " + ontologyModel.getResource(roleResourceStr).getProperty(RDFS.label).getString() + " dans l'épisode " + newEpisodeResource.getProperty(RDFS.label).getString();
+        newCharacter.addProperty(HAS_AGE_RANGE, ageResourceStr);
+        newCharacter.addProperty(HAS_ROLE, roleResourceStr);
+        String appearangeLabel = "apparition de " + character.getProperty(RDFS.label).getString() + " (" + getLabel(ageResourceStr) + ") en tant que " + getLabel(roleResourceStr) + " dans l'épisode " + getLabel(newEpisodeResource);
         newCharacter.addProperty(RDFS.label, appearangeLabel);
         newCharacter.addProperty(RDF.type, character);
         newEpisodeResource.addProperty(HAS_CHARACTER, newCharacter);
@@ -380,6 +461,27 @@ public class OntoFacade {
     }
 
     public void setConcreteCharacter(Resource resource) {
-        ontologyModel.add(resource,RDFS.subClassOf, CONCRETE_CHARACTER);
+        ontologyModel.add(resource, RDFS.subClassOf, CONCRETE_CHARACTER);
+    }
+
+    public LabeledResource createNewLocationClass(String locationLabel, LabeledResource locationType) {
+
+        OntClass klass = ontologyModel.createClass(String.format("%s_%s", locationType.resource().getURI(), Utils.sanitizeURI(locationLabel)));
+        ontologyModel.add(klass, RDF.type, locationType.resource());
+        ontologyModel.add(klass, RDF.type, CONCRETE_LOCATION);
+
+        return new LabeledResource(String.format("le lieu de %s (%s)", locationLabel, getLabel(locationType.resource())), klass.asResource());
+    }
+
+    public <T extends LabeledObject> LabeledResource getCharacterClassFromIndividual(T character) {
+        SelectBuilder sb = selectBuilderTemplate.clone();
+        sb.addVar("?t")
+                .setDistinct(true)
+                .addWhere(character.resource(), RDF.type, "?t")
+                .addWhere("?t", RDF.type, "<https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#ConcreteCharacter>")
+                .build();
+        return asStream(QueryExecutionFactory.create(sb.build(), ontologyModel)
+                .execSelect()).map(r -> LabeledResource.fromRessource(r.get("t").asResource())).findAny().orElse(LabeledResource.getDefault());
+
     }
 }

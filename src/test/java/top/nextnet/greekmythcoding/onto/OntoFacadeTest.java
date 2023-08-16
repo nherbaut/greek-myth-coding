@@ -1,23 +1,35 @@
 package top.nextnet.greekmythcoding.onto;
 
 import org.junit.jupiter.api.Test;
+import top.nextnet.greekmythcoding.cmd.LabeledCharacterAppearance;
 
 import java.util.Collection;
-import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 class OntoFacadeTest {
 
     @Test
+    void getLocationForEpisode(){
+        OntoFacade facade = new OntoFacade();
+        LabeledResource res = facade.getLocationForEpisode(new LabeledResource("Trézène",OntoFacade.ontologyModel.getResource("https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#FT_004")));
+        System.out.println(res);
+    }
+
+    @Test
     void getAllLocations() {
         OntoFacade facade = new OntoFacade();
-        facade.getAllLocations();
+        facade.getAllLocations().stream().map(lr -> lr.label()).forEach(System.out::println);
+    }
+
+    @Test
+    void getAllLocationTypes(){
+        OntoFacade facade = new OntoFacade();
+        facade.getAllLocationTypes().stream().map(lr -> lr.label()).forEach(System.out::println);
     }
 
     @Test
     void getCharactersFromPreviousEpisode() {
-        Collection<LabeledResource> res =  new OntoFacade().getCharactersFromPreviousEpisode("https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#FT_003");
+        Collection<LabeledCharacterAppearance> res =  new OntoFacade().getCharactersIndividualsFromPreviousEpisode("https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#FT_003");
         System.out.println(res);
 
     }
