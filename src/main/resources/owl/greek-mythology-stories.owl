@@ -382,10 +382,11 @@
     
 
 
-    <!-- https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Athene -->
+    <!-- https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Athène -->
 
-    <owl:Class rdf:about="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Athene">
+    <owl:Class rdf:about="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Athène">
         <rdfs:subClassOf rdf:resource="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#City"/>
+        <rdfs:subClassOf rdf:resource="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#ConcreteLocation"/>
         <rdfs:label>Athène</rdfs:label>
     </owl:Class>
     
@@ -500,6 +501,24 @@
     <!-- https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#ConcreteCharacter -->
 
     <owl:Class rdf:about="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#ConcreteCharacter">
+        <rdfs:subClassOf rdf:resource="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#ConcreteConcept"/>
+        <dc:creator rdf:datatype="http://www.w3.org/2001/XMLSchema#string">nherbaut</dc:creator>
+    </owl:Class>
+    
+
+
+    <!-- https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#ConcreteConcept -->
+
+    <owl:Class rdf:about="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#ConcreteConcept">
+        <dc:creator rdf:datatype="http://www.w3.org/2001/XMLSchema#string">nherbaut</dc:creator>
+    </owl:Class>
+    
+
+
+    <!-- https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#ConcreteLocation -->
+
+    <owl:Class rdf:about="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#ConcreteLocation">
+        <rdfs:subClassOf rdf:resource="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#ConcreteConcept"/>
         <dc:creator rdf:datatype="http://www.w3.org/2001/XMLSchema#string">nherbaut</dc:creator>
     </owl:Class>
     
@@ -821,6 +840,7 @@
 
     <owl:Class rdf:about="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Trézène">
         <rdfs:subClassOf rdf:resource="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#City"/>
+        <rdfs:subClassOf rdf:resource="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#ConcreteLocation"/>
     </owl:Class>
     
 
@@ -937,7 +957,9 @@
 
     <!-- https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Chiron -->
 
-    <owl:NamedIndividual rdf:about="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Chiron"/>
+    <owl:NamedIndividual rdf:about="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Chiron">
+        <rdf:type rdf:resource="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Chiron"/>
+    </owl:NamedIndividual>
     
 
 
@@ -952,10 +974,7 @@
     <!-- https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Ethra -->
 
     <owl:NamedIndividual rdf:about="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Ethra">
-        <rdf:type rdf:resource="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Character"/>
         <rdf:type rdf:resource="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Ethra"/>
-        <rdf:type rdf:resource="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Human"/>
-        <rdf:type rdf:resource="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#NamedHuman"/>
         <greek-mythology-stories:has_child rdf:resource="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Thésée"/>
         <greek-mythology-stories:has_family_relationship rdf:resource="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Pitthée"/>
         <greek-mythology-stories:has_family_relationship rdf:resource="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Thésée"/>
@@ -967,10 +986,7 @@
     <!-- https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Eurydice -->
 
     <owl:NamedIndividual rdf:about="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Eurydice">
-        <rdf:type rdf:resource="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Character"/>
         <rdf:type rdf:resource="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Eurydice"/>
-        <rdf:type rdf:resource="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Human"/>
-        <rdf:type rdf:resource="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#NamedHuman"/>
         <greek-mythology-stories:has_child rdf:resource="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Alcmène"/>
         <greek-mythology-stories:has_family_relationship rdf:resource="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Alcmène"/>
         <greek-mythology-stories:has_family_relationship rdf:resource="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Pelops"/>
@@ -1340,7 +1356,7 @@
     <!-- https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#FT_51_Athène -->
 
     <owl:NamedIndividual rdf:about="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#FT_51_Athène">
-        <rdf:type rdf:resource="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Athene"/>
+        <rdf:type rdf:resource="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Athène"/>
         <greek-mythology-stories:has_king rdf:resource="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#FT_51_Thésée"/>
     </owl:NamedIndividual>
     
@@ -1535,33 +1551,13 @@
         <rdf:type rdf:resource="https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Égée"/>
     </owl:NamedIndividual>
     <rdf:Description>
-        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">269.1253558512762</opla-sd:entityPositionX>
-        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">155.4932516290476</opla-sd:entityPositionY>
+        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">243.68602424293297</opla-sd:entityPositionX>
+        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">41.58500793505186</opla-sd:entityPositionY>
         <rdfs:comment xml:lang="en">This is an entity positioning annotation generated by CoModIDE (https://comodide.com/). Removing this annotation will break rendering the CoModIDE schema diagram view.</rdfs:comment>
     </rdf:Description>
     <rdf:Description>
-        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">288.6427448088454</opla-sd:entityPositionX>
-        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">196.30079963606372</opla-sd:entityPositionY>
-        <rdfs:comment xml:lang="en">This is an entity positioning annotation generated by CoModIDE (https://comodide.com/). Removing this annotation will break rendering the CoModIDE schema diagram view.</rdfs:comment>
-    </rdf:Description>
-    <rdf:Description>
-        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">280.0763474555769</opla-sd:entityPositionX>
-        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">201.66493532899858</opla-sd:entityPositionY>
-        <rdfs:comment xml:lang="en">This is an entity positioning annotation generated by CoModIDE (https://comodide.com/). Removing this annotation will break rendering the CoModIDE schema diagram view.</rdfs:comment>
-    </rdf:Description>
-    <rdf:Description>
-        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">208.88352775168786</opla-sd:entityPositionX>
-        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">114.89069311278095</opla-sd:entityPositionY>
-        <rdfs:comment xml:lang="en">This is an entity positioning annotation generated by CoModIDE (https://comodide.com/). Removing this annotation will break rendering the CoModIDE schema diagram view.</rdfs:comment>
-    </rdf:Description>
-    <rdf:Description>
-        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">245.88504371098324</opla-sd:entityPositionX>
-        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">20.100867085363447</opla-sd:entityPositionY>
-        <rdfs:comment xml:lang="en">This is an entity positioning annotation generated by CoModIDE (https://comodide.com/). Removing this annotation will break rendering the CoModIDE schema diagram view.</rdfs:comment>
-    </rdf:Description>
-    <rdf:Description>
-        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">178.98096784577191</opla-sd:entityPositionX>
-        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">266.52375491055216</opla-sd:entityPositionY>
+        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">73.69944941512988</opla-sd:entityPositionX>
+        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">199.8181302038298</opla-sd:entityPositionY>
         <rdfs:comment xml:lang="en">This is an entity positioning annotation generated by CoModIDE (https://comodide.com/). Removing this annotation will break rendering the CoModIDE schema diagram view.</rdfs:comment>
     </rdf:Description>
     <rdf:Description>
@@ -1570,23 +1566,8 @@
         <rdfs:comment xml:lang="en">This is an entity positioning annotation generated by CoModIDE (https://comodide.com/). Removing this annotation will break rendering the CoModIDE schema diagram view.</rdfs:comment>
     </rdf:Description>
     <rdf:Description>
-        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">255.82944777202948</opla-sd:entityPositionX>
-        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">192.62044958543862</opla-sd:entityPositionY>
-        <rdfs:comment xml:lang="en">This is an entity positioning annotation generated by CoModIDE (https://comodide.com/). Removing this annotation will break rendering the CoModIDE schema diagram view.</rdfs:comment>
-    </rdf:Description>
-    <rdf:Description>
-        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">90.43830120405882</opla-sd:entityPositionX>
-        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">78.62083772049508</opla-sd:entityPositionY>
-        <rdfs:comment xml:lang="en">This is an entity positioning annotation generated by CoModIDE (https://comodide.com/). Removing this annotation will break rendering the CoModIDE schema diagram view.</rdfs:comment>
-    </rdf:Description>
-    <rdf:Description>
-        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">46.43045996301902</opla-sd:entityPositionX>
-        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">133.67738791047938</opla-sd:entityPositionY>
-        <rdfs:comment xml:lang="en">This is an entity positioning annotation generated by CoModIDE (https://comodide.com/). Removing this annotation will break rendering the CoModIDE schema diagram view.</rdfs:comment>
-    </rdf:Description>
-    <rdf:Description>
-        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">180.26704152340795</opla-sd:entityPositionX>
-        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">298.1159944052712</opla-sd:entityPositionY>
+        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">178.98096784577191</opla-sd:entityPositionX>
+        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">266.52375491055216</opla-sd:entityPositionY>
         <rdfs:comment xml:lang="en">This is an entity positioning annotation generated by CoModIDE (https://comodide.com/). Removing this annotation will break rendering the CoModIDE schema diagram view.</rdfs:comment>
     </rdf:Description>
     <rdf:Description>
@@ -1595,18 +1576,18 @@
         <rdfs:comment xml:lang="en">This is an entity positioning annotation generated by CoModIDE (https://comodide.com/). Removing this annotation will break rendering the CoModIDE schema diagram view.</rdfs:comment>
     </rdf:Description>
     <rdf:Description>
-        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">238.08942340657217</opla-sd:entityPositionX>
-        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">123.53602128954134</opla-sd:entityPositionY>
+        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">180.26704152340795</opla-sd:entityPositionX>
+        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">298.1159944052712</opla-sd:entityPositionY>
         <rdfs:comment xml:lang="en">This is an entity positioning annotation generated by CoModIDE (https://comodide.com/). Removing this annotation will break rendering the CoModIDE schema diagram view.</rdfs:comment>
     </rdf:Description>
     <rdf:Description>
-        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">249.56253903505598</opla-sd:entityPositionX>
-        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">450.069841224127</opla-sd:entityPositionY>
+        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">46.43045996301902</opla-sd:entityPositionX>
+        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">133.67738791047938</opla-sd:entityPositionY>
         <rdfs:comment xml:lang="en">This is an entity positioning annotation generated by CoModIDE (https://comodide.com/). Removing this annotation will break rendering the CoModIDE schema diagram view.</rdfs:comment>
     </rdf:Description>
     <rdf:Description>
-        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">265.2285827061617</opla-sd:entityPositionX>
-        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">251.14018200415822</opla-sd:entityPositionY>
+        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">90.43830120405882</opla-sd:entityPositionX>
+        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">78.62083772049508</opla-sd:entityPositionY>
         <rdfs:comment xml:lang="en">This is an entity positioning annotation generated by CoModIDE (https://comodide.com/). Removing this annotation will break rendering the CoModIDE schema diagram view.</rdfs:comment>
     </rdf:Description>
     <rdf:Description>
@@ -1615,13 +1596,48 @@
         <rdfs:comment xml:lang="en">This is an entity positioning annotation generated by CoModIDE (https://comodide.com/). Removing this annotation will break rendering the CoModIDE schema diagram view.</rdfs:comment>
     </rdf:Description>
     <rdf:Description>
-        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">243.68602424293297</opla-sd:entityPositionX>
-        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">41.58500793505186</opla-sd:entityPositionY>
+        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">265.2285827061617</opla-sd:entityPositionX>
+        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">251.14018200415822</opla-sd:entityPositionY>
         <rdfs:comment xml:lang="en">This is an entity positioning annotation generated by CoModIDE (https://comodide.com/). Removing this annotation will break rendering the CoModIDE schema diagram view.</rdfs:comment>
     </rdf:Description>
     <rdf:Description>
-        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">73.69944941512988</opla-sd:entityPositionX>
-        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">199.8181302038298</opla-sd:entityPositionY>
+        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">249.56253903505598</opla-sd:entityPositionX>
+        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">450.069841224127</opla-sd:entityPositionY>
+        <rdfs:comment xml:lang="en">This is an entity positioning annotation generated by CoModIDE (https://comodide.com/). Removing this annotation will break rendering the CoModIDE schema diagram view.</rdfs:comment>
+    </rdf:Description>
+    <rdf:Description>
+        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">238.08942340657217</opla-sd:entityPositionX>
+        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">123.53602128954134</opla-sd:entityPositionY>
+        <rdfs:comment xml:lang="en">This is an entity positioning annotation generated by CoModIDE (https://comodide.com/). Removing this annotation will break rendering the CoModIDE schema diagram view.</rdfs:comment>
+    </rdf:Description>
+    <rdf:Description>
+        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">255.82944777202948</opla-sd:entityPositionX>
+        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">192.62044958543862</opla-sd:entityPositionY>
+        <rdfs:comment xml:lang="en">This is an entity positioning annotation generated by CoModIDE (https://comodide.com/). Removing this annotation will break rendering the CoModIDE schema diagram view.</rdfs:comment>
+    </rdf:Description>
+    <rdf:Description>
+        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">269.1253558512762</opla-sd:entityPositionX>
+        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">155.4932516290476</opla-sd:entityPositionY>
+        <rdfs:comment xml:lang="en">This is an entity positioning annotation generated by CoModIDE (https://comodide.com/). Removing this annotation will break rendering the CoModIDE schema diagram view.</rdfs:comment>
+    </rdf:Description>
+    <rdf:Description>
+        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">245.88504371098324</opla-sd:entityPositionX>
+        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">20.100867085363447</opla-sd:entityPositionY>
+        <rdfs:comment xml:lang="en">This is an entity positioning annotation generated by CoModIDE (https://comodide.com/). Removing this annotation will break rendering the CoModIDE schema diagram view.</rdfs:comment>
+    </rdf:Description>
+    <rdf:Description>
+        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">208.88352775168786</opla-sd:entityPositionX>
+        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">114.89069311278095</opla-sd:entityPositionY>
+        <rdfs:comment xml:lang="en">This is an entity positioning annotation generated by CoModIDE (https://comodide.com/). Removing this annotation will break rendering the CoModIDE schema diagram view.</rdfs:comment>
+    </rdf:Description>
+    <rdf:Description>
+        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">280.0763474555769</opla-sd:entityPositionX>
+        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">201.66493532899858</opla-sd:entityPositionY>
+        <rdfs:comment xml:lang="en">This is an entity positioning annotation generated by CoModIDE (https://comodide.com/). Removing this annotation will break rendering the CoModIDE schema diagram view.</rdfs:comment>
+    </rdf:Description>
+    <rdf:Description>
+        <opla-sd:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">288.6427448088454</opla-sd:entityPositionX>
+        <opla-sd:entityPositionY rdf:datatype="http://www.w3.org/2001/XMLSchema#double">196.30079963606372</opla-sd:entityPositionY>
         <rdfs:comment xml:lang="en">This is an entity positioning annotation generated by CoModIDE (https://comodide.com/). Removing this annotation will break rendering the CoModIDE schema diagram view.</rdfs:comment>
     </rdf:Description>
     

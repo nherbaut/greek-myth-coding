@@ -19,6 +19,7 @@ import org.springframework.shell.standard.AbstractShellComponent;
 import org.springframework.stereotype.Component;
 import top.nextnet.greekmythcoding.cmd.exception.NoPreviousEpisodeException;
 import top.nextnet.greekmythcoding.onto.CharacterAppearance;
+import top.nextnet.greekmythcoding.onto.LabeledObject;
 import top.nextnet.greekmythcoding.onto.LabeledResource;
 import top.nextnet.greekmythcoding.onto.OntoFacade;
 
@@ -58,26 +59,56 @@ public class EpisodeCommand extends AbstractShellComponent {
         if (!existingEpisodes.contains(userSelectedEpisodeNumber)) {
             return newEpisodeFlow(book, userSelectedEpisodeNumber, previousEpisodeNumber);
         } else {
-            return editExistingEpisodeFlow(book, userSelectedEpisodeNumber);
+
+            return editExistingEpisodeFlow(this.ontoFacade.getEpisode(book, userSelectedEpisodeNumber));
         }
 
     }
 
-    private LabeledResource simpleSingleMatchFromList(String prompt, Collection<LabeledResource> possibleValues) {
+    private <T extends LabeledObject> T simpleSingleMatchFromList(String prompt, Collection<T> possibleValues) {
         LabeledResource bookResource;
-        List<SelectorItem<LabeledResource>> books = possibleValues.stream().map(lr -> SelectorItem.of(lr.label(), lr)).collect(Collectors.toList());
-        SingleItemSelector<LabeledResource, SelectorItem<LabeledResource>> selectorComponent = new SingleItemSelector<>(getTerminal(),
+        List<SelectorItem<T>> books = possibleValues.stream().map(lr -> SelectorItem.of(lr.label(), lr)).collect(Collectors.toList());
+        SingleItemSelector<T, SelectorItem<T>> selectorComponent = new SingleItemSelector<>(getTerminal(),
                 books, prompt, null);
         selectorComponent.setResourceLoader(getResourceLoader());
         selectorComponent.setTemplateExecutor(getTemplateExecutor());
-        SingleItemSelector.SingleItemSelectorContext<LabeledResource, SelectorItem<LabeledResource>> selectorContext = selectorComponent
+        SingleItemSelector.SingleItemSelectorContext<T, SelectorItem<T>> selectorContext = selectorComponent
                 .run(SingleItemSelector.SingleItemSelectorContext.empty());
         return selectorContext.getResultItem().flatMap(si -> Optional.ofNullable(si.getItem())).get();
 
     }
 
-    private String editExistingEpisodeFlow(LabeledResource bookResource, Integer userSelectedEpisodeNumber) {
-        return "ko";
+    enum ModifyEpisodeFlow {
+
+        CHANGE_CHARACTERS("Modifier les personnages"),
+        CHANGE_LOCATION("Modifier le lieu"),
+        NONE("Ne rien faire");
+
+
+        public String getLabel() {
+            return label;
+        }
+
+        final String label;
+
+        private ModifyEpisodeFlow(String str) {
+            this.label = str;
+        }
+    }
+
+    private String editExistingEpisodeFlow(LabeledResource<Resource> episode) {
+
+        return null;
+    }
+
+    enum ChangeCharacterMenu {
+        NEW,
+        DELETE,
+        EDIT;
+    }
+
+    private void editExistingEpisodeFlowChangeCharacter(Resource episode) {
+
     }
 
     private String newEpisodeFlow(LabeledResource book, Integer episodeNumber, Integer previousEpisodeNumber) {
@@ -102,7 +133,7 @@ public class EpisodeCommand extends AbstractShellComponent {
         Resource newEpisode = ontoFacade.addEpisode(book, episodeNumber, episodeLabel);
 
         //copy location from previous episode
-        LabeledResource previousEpisodeLocation = ontoFacade.getLocationForEpisode(previousEpisodeResource.resourceAsStr());
+        LabeledResource<Resource> previousEpisodeLocation = ontoFacade.getLocationForEpisode(previousEpisodeResource.resourceAsStr());
 
         Boolean result = askSimpleYNQuestion("L'histoire se passe-t-elle toujours à  " + previousEpisodeLocation.label(), true);
         if (result) {
@@ -143,8 +174,6 @@ public class EpisodeCommand extends AbstractShellComponent {
             Collection<LabeledResource> characterTypes = ontoFacade.getSelectableCharacterTypes();
 
 
-
-
             List<LabeledResource> allChars = ontoFacade.getAllCharacters();
             getTerminal().writer().println("Entrez le nom du personnage");
             LineReader reader = LineReaderBuilder.builder()
@@ -158,8 +187,8 @@ public class EpisodeCommand extends AbstractShellComponent {
             if (userSpecifiedCharacterInList.isPresent()) {
                 setCharacterconfig(userSpecifiedCharacterInList.get(), newEpisode);
             } else {
-                LabeledResource characterClass = simpleSingleMatchFromList("Choissez un type de personnage", characterTypes);
-                LabeledResource newCharacter = ontoFacade.createNewCharacter(characterLabel);
+                LabeledResource<Resource> characterClass = simpleSingleMatchFromList("Choissez un type de personnage", characterTypes);
+                LabeledResource<Resource> newCharacter = ontoFacade.createNewCharacter(characterLabel);
                 setCharacterconfig(newCharacter, newEpisode);
                 if (askSimpleYNQuestion("Connait-on déjà les parents de ce personnage?", false)) {
                     List<LabeledResource> parents = simpleMultimatchSelector("Selectionner les parents de " + characterLabel, ontoFacade.getAllCharacters(), Collections.emptyList());
@@ -181,11 +210,11 @@ public class EpisodeCommand extends AbstractShellComponent {
     @Autowired
     private ComponentFlow.Builder componentFlowBuilder;
 
-    private void setCharacterconfig(LabeledResource characterResource, Resource episodeResource) {
+    private void setCharacterconfig(LabeledResource<Resource> characterResource, Resource episodeResource) {
         setCharacterconfig(characterResource, episodeResource, null);
     }
 
-    private void setCharacterconfig(LabeledResource characterResource, Resource episodeResource, LabeledResource hintEpisodeResource) {
+    private void setCharacterconfig(LabeledResource<Resource> characterResource, Resource episodeResource, LabeledResource<Resource> hintEpisodeResource) {
         CharacterAppearance appearance;
         if (hintEpisodeResource != null) {
             appearance = ontoFacade.getCharacterAppearanceInEpisode(characterResource.resource(), hintEpisodeResource.resource());
