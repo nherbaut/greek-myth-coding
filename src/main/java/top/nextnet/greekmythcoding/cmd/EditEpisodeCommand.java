@@ -231,8 +231,12 @@ public class EditEpisodeCommand extends AbstractShellComponentImpl implements Ca
             LabeledResource episodeLocation = context.getExtendedState().get(EditEpisodeStateMachineConfigurer.ExtendedState.EPISODE_LOCATION, LabeledResource.class);
             Collection<LabeledCharacterAppearance> characterAppearances = context.getExtendedState().get(EditEpisodeStateMachineConfigurer.ExtendedState.EPISODE_CHARACTER_APPEARANCE, Collection.class);
             ontoFacade.saveEpisode(episodeName, episodeBook, episodeNumber, episodeLocation, characterAppearances);
-
-            ontoFacade.save();
+            try {
+                ontoFacade.save();
+            }catch (Throwable t){
+                t.printStackTrace();
+                throw new RuntimeException(t);
+            }
         }
 
         saveAndSendEvent(context, events);

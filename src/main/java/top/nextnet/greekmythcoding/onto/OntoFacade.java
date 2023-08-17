@@ -416,7 +416,7 @@ public class OntoFacade {
 
     public void setParentForCharacter(LabeledResource character, String parentResourceIRI) {
 
-        ontologyModel.createStatement(character.resource(), HAS_PARENT, ontologyModel.getOntClass(parentResourceIRI));
+        ontologyModel.add(character.resource(), HAS_PARENT, ontologyModel.getOntClass(parentResourceIRI));
     }
 
     public Collection<String> getAllTitlesToken() {
@@ -471,9 +471,11 @@ public class OntoFacade {
 
     public LabeledResource createNewLocationClass(String locationLabel, LabeledResource locationType) {
 
-        OntClass klass = ontologyModel.createClass(String.format("%s_%s", locationType.resource().getURI(), Utils.sanitizeURI(locationLabel)));
-        ontologyModel.createStatement(klass, RDF.type, locationType.resource());
-        ontologyModel.createStatement(klass, RDF.type, CONCRETE_LOCATION);
+        Resource klass = ontologyModel.createResource(Utils.sanitizeURI(String.format("%s_%s", locationType.resource().getURI(), locationLabel)));
+        ontologyModel.add(klass,RDF.type,RDFS.Class);
+        ontologyModel.add(klass, RDFS.subClassOf, locationType.resource());
+        ontologyModel.add(klass, RDFS.subClassOf, CONCRETE_LOCATION);
+        
 
 
         return new LabeledResource(String.format("le lieu de %s (%s)", locationLabel, getLabel(klass)), klass.asResource());
@@ -513,26 +515,33 @@ public class OntoFacade {
 
     public LabeledResource saveEpisode(String episodeName, LabeledResource episodeBook, Integer episodeNumber, LabeledResource episodeLocation, Collection<LabeledCharacterAppearance> characterAppearances) {
         Resource newEpisode = ontologyModel.createResource(Utils.sanitizeURI(EPISODE + "_" + episodeBook.resource().getLocalName() + "_" + episodeNumber));
-        ontologyModel.createStatement(newEpisode, RDF.type, EPISODE);
-        ontologyModel.createStatement(newEpisode, RDF.type, OWL2.NamedIndividual);
-        ontologyModel.createStatement(newEpisode, RDFS.label, ontologyModel.createLiteral(episodeName));
-        ontologyModel.createStatement(newEpisode, HAS_BOOK, episodeBook.resource());
-        ontologyModel.createStatement(newEpisode, HAS_EPISODE_NUMBER, ontologyModel.createLiteral("" + episodeNumber));
+        ontologyModel.add(newEpisode, RDF.type, EPISODE);
+        ontologyModel.add(newEpisode, RDF.type, OWL2.NamedIndividual);
+        ontologyModel.add(newEpisode, RDFS.label, ontologyModel.createLiteral(episodeName));
+        ontologyModel.add(newEpisode, HAS_BOOK, episodeBook.resource());
+        ontologyModel.add(newEpisode, HAS_EPISODE_NUMBER, ontologyModel.createLiteral("" + episodeNumber));
 
 
-        Resource newEpisodeLocation = ontologyModel.createResource(newEpisode.getURI() + "_" + episodeLocation.resource().getLocalName());
-        ontologyModel.createStatement(newEpisode, HAS_LOCATION, newEpisodeLocation);
-        ontologyModel.createStatement(newEpisodeLocation, RDF.type, episodeLocation.resource());
-        ontologyModel.createStatement(newEpisodeLocation, RDFS.label, ontologyModel.createLiteral(String.format("%s dans l'épisode %d du livre %s : %s", episodeLocation.label(), episodeNumber, episodeBook.label(), episodeName)));
+        Resource newEpisodeLocation = ontologyModel.createResource(Utils.sanitizeURI(newEpisode.getURI() + "_" + episodeLocation.resource().getLocalName()));
+        ontologyModel.add(newEpisode, HAS_LOCATION, newEpisodeLocation);
+        ontologyModel.add(newEpisodeLocation, RDF.type, episodeLocation.resource());
+        ontologyModel.add(newEpisodeLocation, RDFS.label, ontologyModel.createLiteral(String.format("%s dans l'épisode %d du livre %s : %s", episodeLocation.label(), episodeNumber, episodeBook.label(), episodeName)));
 
 
         characterAppearances.forEach(a -> {
-            Resource newCharAppearance = ontologyModel.createResource(newEpisode.getURI() + "_" + a.resource().character().resource().getLocalName());
-            ontologyModel.createStatement(newCharAppearance, HAS_ROLE, a.resource().role().resource());
-            ontologyModel.createStatement(newCharAppearance, HAS_AGE_RANGE, a.resource().ageRange().resource());
-            ontologyModel.createStatement(newCharAppearance, RDF.type, a.resource().character().resource());
-            ontologyModel.createStatement(newCharAppearance, RDF.type, OWL2.NamedIndividual);
-            ontologyModel.createStatement(newEpisode, HAS_CHARACTER, newCharAppearance);
+            Resource newCharAppearance = ontologyModel.createResource(Utils.sanitizeURI(newEpisode.getURI() + "_" + a.resource().character().resource().getLocalName()));
+            ontologyModel.add(newCharAppearance, HAS_ROLE, a.resource().role().resource());
+            ontologyModel.add(newCharAppearance, RDFS.label, ontologyModel.createLiteral(
+                    String.format("Le personnage de %s (%s,%s) dans l'épisode %s de %s",
+                            a.label(),
+                            a.resource().ageRange().label(),
+                            a.resource().role().label(),
+                            newEpisode.getProperty(RDFS.label).getLiteral().getString(),
+                            episodeBook.label())));
+            ontologyModel.add(newCharAppearance, HAS_AGE_RANGE, a.resource().ageRange().resource());
+            ontologyModel.add(newCharAppearance, RDF.type, a.resource().character().resource());
+            ontologyModel.add(newCharAppearance, RDF.type, OWL2.NamedIndividual);
+            ontologyModel.add(newEpisode, HAS_CHARACTER, newCharAppearance);
         });
         return new LabeledResource(episodeName, newEpisode);
     }

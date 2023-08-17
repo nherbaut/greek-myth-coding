@@ -63,7 +63,7 @@ public class EditEpisodeStateMachineConfigurer
                 })
                 .state(States.CONFIGURE_EPISODE_NAME, (context) -> {
                     getCommand(context).askUserForEpisodeName(context, ExtendedState.EPISODE_NAME_STR, Events.FINISH_CONFIGURE_EPISODE_NAME);
-                })
+                },errorAction())
                 .state(States.FINAL, (context -> {
                     System.out.println("all done");
                     getCommand(context).setRunning(false);
