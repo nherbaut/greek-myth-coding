@@ -9,9 +9,9 @@ import java.util.stream.Collectors;
 class OntoFacadeTest {
 
     @Test
-    void getLocationForEpisode(){
+    void getLocationForEpisode() {
         OntoFacade facade = new OntoFacade();
-        LabeledResource res = facade.getLocationForEpisode(new LabeledResource("Trézène",OntoFacade.ontologyModel.getResource("https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#FT_004")));
+        LabeledResource res = facade.getLocationForEpisode(new LabeledResource("Trézène", OntoFacade.ontologyModel.getResource("https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#FT_004")));
         System.out.println(res);
     }
 
@@ -22,14 +22,14 @@ class OntoFacadeTest {
     }
 
     @Test
-    void getAllLocationTypes(){
+    void getAllLocationTypes() {
         OntoFacade facade = new OntoFacade();
         facade.getAllLocationTypes().stream().map(lr -> lr.label()).forEach(System.out::println);
     }
 
     @Test
     void getCharactersFromPreviousEpisode() {
-        Collection<LabeledCharacterAppearance> res =  new OntoFacade().getCharactersIndividualsFromPreviousEpisode("https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#FT_003");
+        Collection<LabeledCharacterAppearance> res = new OntoFacade().getCharactersIndividualsFromPreviousEpisode(LabeledResource.fromRessource(OntoFacade.ontologyModel.getResource("https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#FT_003")));
         System.out.println(res);
 
     }
@@ -37,11 +37,12 @@ class OntoFacadeTest {
     @Test
     void getCharacterAgeRangeInEpisode() {
         OntoFacade facade = new OntoFacade();
-         facade.getCharacterAppearanceInEpisode(OntoFacade.ontologyModel.getResource("https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Thésée"),
+        facade.getCharacterAppearanceInEpisode(OntoFacade.ontologyModel.getResource("https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Thésée"),
                 OntoFacade.ontologyModel.getResource("https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#FT_02"));
 
 
     }
+
     @Test
     void getAgeRange() {
         OntoFacade facade = new OntoFacade();
@@ -51,7 +52,7 @@ class OntoFacadeTest {
     }
 
     @Test
-    void testLionFT02(){
+    void testLionFT02() {
         OntoFacade facade = new OntoFacade();
         CharacterAppearance charApp = facade.getCharacterAppearanceInEpisode(
                 OntoFacade.ontologyModel.getResource("https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#Lion_de_Némée"),
@@ -60,26 +61,26 @@ class OntoFacadeTest {
     }
 
     @Test
-    void testEpiNumber(){
+    void testEpiNumber() {
         OntoFacade facade = new OntoFacade();
-        System.out.println(facade.getExistingEpisodesNumberForBookList(new LabeledResource("FT",OntoFacade.ontologyModel.getResource("https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#FT"))).stream().map(i -> i.toString()).collect(Collectors.joining(" ")));
+        System.out.println(facade.getExistingEpisodesNumberForBookList(new LabeledResource("FT", OntoFacade.ontologyModel.getResource("https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#FT"))).stream().map(i -> i.toString()).collect(Collectors.joining(" ")));
     }
 
     @Test
-    void getAllChar(){
+    void getAllChar() {
         OntoFacade facade = new OntoFacade();
         System.out.println(facade.getAllCharacters().stream().map(lr -> lr.label()).collect(Collectors.joining(" ")));
     }
 
     @Test
-    void getCharTypes(){
+    void getCharTypes() {
         OntoFacade facade = new OntoFacade();
         System.out.println(facade.getCharacterTypes().stream().map(lr -> lr.label()).collect(Collectors.joining(" ")));
     }
 
     @Test
-    void getSubCharacterTypes(){
-        OntoFacade facade=new OntoFacade();
+    void getSubCharacterTypes() {
+        OntoFacade facade = new OntoFacade();
         System.out.println(facade.getSelectableCharacterTypes());
 
         //System.out.println(facade.getSubCharacterTypes(OntoFacade.ontologyModel.getResource("https://nextnet.top/ontologies/2023/07/greek-mythology-stories/1.0.0#NamedHuman")).stream().map(Objects::toString).collect(Collectors.joining("\n")));

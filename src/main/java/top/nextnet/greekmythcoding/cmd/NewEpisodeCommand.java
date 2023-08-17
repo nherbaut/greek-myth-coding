@@ -7,12 +7,6 @@ import de.codeshelf.consoleui.prompt.PromtResultItemIF;
 import de.codeshelf.consoleui.prompt.builder.ListPromptBuilder;
 import de.codeshelf.consoleui.prompt.builder.PromptBuilder;
 import org.apache.jena.rdf.model.Resource;
-import org.jline.reader.LineReader;
-import org.jline.reader.LineReaderBuilder;
-import org.jline.reader.impl.CompletionMatcherImpl;
-import org.jline.reader.impl.DefaultParser;
-import org.jline.reader.impl.completer.StringsCompleter;
-import org.springframework.shell.command.annotation.Command;
 import org.springframework.stereotype.Component;
 import top.nextnet.greekmythcoding.cmd.exception.NoPreviousEpisodeException;
 import top.nextnet.greekmythcoding.onto.CharacterAppearance;
@@ -23,12 +17,12 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
-@Command(command = "new")
+
 @Component
 public class NewEpisodeCommand extends AbstractShellComponentImpl {
 
+/*
 
-    @Command(command = "episode", group = "Components", description = "crée un nouvel épisode")
     public String episodeSelectionFlow() {
 
 
@@ -264,6 +258,6 @@ public class NewEpisodeCommand extends AbstractShellComponentImpl {
             }
         }
         return defaultEpisode;
-    }
+    }*/
 }
 

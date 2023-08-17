@@ -9,12 +9,16 @@ public record CharacterAppearance(LabeledResource character, LabeledResource age
                 LabeledResource.getDefault(), LabeledResource.getDefault());
     }
 
+    public static Builder getBuilder(){
+        return new Builder();
+    }
+
     public static class Builder {
         private LabeledResource role;
         private LabeledResource character;
         private LabeledResource ageRange;
 
-        public Builder() {
+        private Builder() {
         }
 
         public Builder withCharacter(RDFNode res) {

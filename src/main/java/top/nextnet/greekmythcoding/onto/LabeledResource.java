@@ -28,7 +28,14 @@ public record LabeledResource(String label,
     }
 
     public static LabeledResource fromStatementSubject(Statement stmt) {
-        return new LabeledResource(stmt.getSubject().getProperty(RDFS.label).getString(), stmt.getSubject().asResource());
+        try {
+            return new LabeledResource(stmt.getSubject().getProperty(RDFS.label).getString(), stmt.getSubject().asResource());
+        }
+        catch (Throwable e){
+            System.out.println("issue with statement " + stmt.toString());
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
     }
 
     public static LabeledResource fromStatementObject(Statement stmt) {
@@ -47,5 +54,10 @@ public record LabeledResource(String label,
 
     public static LabeledResource getDefault() {
         return new LabeledResource("", null);
+    }
+
+    @Override
+    public String toString() {
+        return label();
     }
 }

@@ -16,7 +16,6 @@ import org.springframework.stereotype.Component;
 import top.nextnet.greekmythcoding.Utils;
 import top.nextnet.greekmythcoding.cmd.LabeledCharacterAppearance;
 
-
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -256,13 +255,11 @@ public class OntoFacade {
         ExprFactory factory = new ExprFactory();
 
         sb.addVar("?x").setDistinct(true)
-                .addWhere("?x", "rdfs:subClassOf*", LOCATION)
-                .addWhere("?x", RDF.type, OWL2.NamedIndividual)
-                .addWhere("?x", RDF.type, OWL2.Class)
-                .addFilter(factory.notexists(selectBuilderTemplate.
-                        addWhere("?x", "rdfs:subClassOf*", CONCRETE_CONCEPT)
-                        .addWhere("?y", "rdfs:subClassOf", "?x")
-                        .addWhere("?y", RDF.type, OWL2.Class)));
+                .addWhere("?x", RDFS.subClassOf, LOCATION)
+
+                .addFilter(factory.notexists(selectBuilderTemplate.clone().
+                        addWhere("?x", RDF.type, OWL2.NamedIndividual)));
+
         QueryExecution qe = QueryExecutionFactory.create(sb.build(), ontologyModel);
 
 
@@ -275,14 +272,14 @@ public class OntoFacade {
 
     }
 
-    public Collection<LabeledCharacterAppearance> getCharactersIndividualsFromPreviousEpisode(String previousEpisode) {
+    public Collection<LabeledCharacterAppearance> getCharactersIndividualsFromPreviousEpisode(LabeledResource previousEpisode) {
         SelectBuilder sb = selectBuilderTemplate.clone();
         sb.addVar("?t").
                 addVar("?c").
                 addVar("?age_range").
                 addVar("?role")
                 .setDistinct(true)
-                .addWhere(ontologyModel.getResource(previousEpisode), HAS_CHARACTER, "?c")
+                .addWhere(previousEpisode.resource(), HAS_CHARACTER, "?c")
                 .addWhere("?c", RDF.type, "?t")
                 .addWhere("?c", HAS_AGE_RANGE, "?age_range")
                 .addWhere("?c", HAS_ROLE, "?role")
@@ -290,7 +287,7 @@ public class OntoFacade {
                 .build();
         return asStream(QueryExecutionFactory.create(sb.build(), ontologyModel)
                 .execSelect())
-                .map(qs -> new LabeledCharacterAppearance(String.format("%s (%s, %s)", getLabel(qs.get("t")), getLabel(qs.get("age_range")), getLabel(qs.get("role"))), new CharacterAppearance.Builder().withCharacter(qs.get("t")).withAgeRange(qs.get("age_range")).withRole(qs.get("role")).build()))
+                .map(qs -> new LabeledCharacterAppearance(String.format("%s (%s, %s)", getLabel(qs.get("t")), getLabel(qs.get("age_range")), getLabel(qs.get("role"))), CharacterAppearance.getBuilder().withCharacter(qs.get("t")).withAgeRange(qs.get("age_range")).withRole(qs.get("role")).build()))
                 .collect(Collectors.toSet());
 
     }
@@ -403,10 +400,18 @@ public class OntoFacade {
         return asStream(ontologyModel.listStatements(null, RDFS.subClassOf, CHARACTER)).filter(stmt -> stmt.getSubject().getProperty(RDFS.label) != null).map(LabeledResource::fromStatementSubject).collect(Collectors.toList());
     }
 
-    public LabeledResource createNewCharacter(String characterLabel) {
+    public LabeledResource createNewCharacterClass(String characterLabel) {
         OntClass newChar = ontologyModel.createClass(NS + characterLabel.replace(" ", "_"));
         newChar.addProperty(RDFS.label, characterLabel);
         return new LabeledResource(characterLabel, newChar);
+    }
+
+    public LabeledResource createNewCharacterClass(String characterLabel, LabeledResource newCharacterClass) {
+        OntClass newChar = ontologyModel.createClass(NS + Utils.sanitizeURI(characterLabel));
+        newChar.addProperty(RDFS.label, characterLabel);
+        newChar.setSuperClass(newCharacterClass.resource());
+        newChar.setSuperClass(CONCRETE_CHARACTER);
+        return new LabeledResource(characterLabel, newChar.asResource());
     }
 
     public void setParentForCharacter(LabeledResource character, String parentResourceIRI) {
@@ -467,10 +472,11 @@ public class OntoFacade {
     public LabeledResource createNewLocationClass(String locationLabel, LabeledResource locationType) {
 
         OntClass klass = ontologyModel.createClass(String.format("%s_%s", locationType.resource().getURI(), Utils.sanitizeURI(locationLabel)));
-        ontologyModel.add(klass, RDF.type, locationType.resource());
-        ontologyModel.add(klass, RDF.type, CONCRETE_LOCATION);
+        ontologyModel.createStatement(klass, RDF.type, locationType.resource());
+        ontologyModel.createStatement(klass, RDF.type, CONCRETE_LOCATION);
 
-        return new LabeledResource(String.format("le lieu de %s (%s)", locationLabel, getLabel(locationType.resource())), klass.asResource());
+
+        return new LabeledResource(String.format("le lieu de %s (%s)", locationLabel, getLabel(klass)), klass.asResource());
     }
 
     public <T extends LabeledObject> LabeledResource getCharacterClassFromIndividual(T character) {
@@ -483,5 +489,56 @@ public class OntoFacade {
         return asStream(QueryExecutionFactory.create(sb.build(), ontologyModel)
                 .execSelect()).map(r -> LabeledResource.fromRessource(r.get("t").asResource())).findAny().orElse(LabeledResource.getDefault());
 
+    }
+
+
+    public LabeledResource getPreviousEpisode(LabeledResource book, Integer i) {
+        List<LabeledResource> episodes = this.getAllEpisodesForBook(book);
+        return episodes.stream()
+                .sorted((Comparator<LabeledResource>) (t0, t1) -> -Integer.valueOf(t0.resource().getProperty(HAS_EPISODE_NUMBER).getInt()).compareTo(
+                        Integer.valueOf(t1.resource().getProperty(HAS_EPISODE_NUMBER).getInt())))
+                .filter(lr -> Integer.valueOf(lr.resource().getProperty(HAS_EPISODE_NUMBER).getInt()) <= i)
+
+                .findFirst().orElse(LabeledResource.getDefault());
+
+    }
+
+
+    private List<LabeledResource> getAllEpisodesForBook(LabeledResource book) {
+        return asStream(ontologyModel.listStatements(null, HAS_BOOK, book.resource()))
+                .map(LabeledResource::fromStatementSubject)
+                .collect(Collectors.toList());
+    }
+
+
+    public LabeledResource saveEpisode(String episodeName, LabeledResource episodeBook, Integer episodeNumber, LabeledResource episodeLocation, Collection<LabeledCharacterAppearance> characterAppearances) {
+        Resource newEpisode = ontologyModel.createResource(Utils.sanitizeURI(EPISODE + "_" + episodeBook.resource().getLocalName() + "_" + episodeNumber));
+        ontologyModel.createStatement(newEpisode, RDF.type, EPISODE);
+        ontologyModel.createStatement(newEpisode, RDF.type, OWL2.NamedIndividual);
+        ontologyModel.createStatement(newEpisode, RDFS.label, ontologyModel.createLiteral(episodeName));
+        ontologyModel.createStatement(newEpisode, HAS_BOOK, episodeBook.resource());
+        ontologyModel.createStatement(newEpisode, HAS_EPISODE_NUMBER, ontologyModel.createLiteral("" + episodeNumber));
+
+
+        Resource newEpisodeLocation = ontologyModel.createResource(newEpisode.getURI() + "_" + episodeLocation.resource().getLocalName());
+        ontologyModel.createStatement(newEpisode, HAS_LOCATION, newEpisodeLocation);
+        ontologyModel.createStatement(newEpisodeLocation, RDF.type, episodeLocation.resource());
+        ontologyModel.createStatement(newEpisodeLocation, RDFS.label, ontologyModel.createLiteral(String.format("%s dans l'épisode %d du livre %s : %s", episodeLocation.label(), episodeNumber, episodeBook.label(), episodeName)));
+
+
+        characterAppearances.forEach(a -> {
+            Resource newCharAppearance = ontologyModel.createResource(newEpisode.getURI() + "_" + a.resource().character().resource().getLocalName());
+            ontologyModel.createStatement(newCharAppearance, HAS_ROLE, a.resource().role().resource());
+            ontologyModel.createStatement(newCharAppearance, HAS_AGE_RANGE, a.resource().ageRange().resource());
+            ontologyModel.createStatement(newCharAppearance, RDF.type, a.resource().character().resource());
+            ontologyModel.createStatement(newCharAppearance, RDF.type, OWL2.NamedIndividual);
+            ontologyModel.createStatement(newEpisode, HAS_CHARACTER, newCharAppearance);
+        });
+        return new LabeledResource(episodeName, newEpisode);
+    }
+
+
+    public Collection<LabeledResource> getAllEpisodes() {
+        return asStream(ontologyModel.listStatements(null, RDF.type, EPISODE)).map(LabeledResource::fromStatementSubject).collect(Collectors.toSet());
     }
 }
