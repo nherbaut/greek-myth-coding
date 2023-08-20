@@ -514,7 +514,7 @@ public class OntoFacade {
 
 
     public LabeledResource saveEpisode(String episodeName, LabeledResource episodeBook, Integer episodeNumber, LabeledResource episodeLocation, Collection<LabeledCharacterAppearance> characterAppearances) {
-        Resource newEpisode = ontologyModel.createResource(Utils.sanitizeURI(EPISODE + "_" + episodeBook.resource().getLocalName() + "_" + episodeNumber));
+        Resource newEpisode = ontologyModel.createResource(Utils.sanitizeURI(EPISODE + "_" + episodeBook.resource().getLocalName() + "_" + String.format("%03d",episodeNumber)));
         ontologyModel.add(newEpisode, RDF.type, EPISODE);
         ontologyModel.add(newEpisode, RDF.type, OWL2.NamedIndividual);
         ontologyModel.add(newEpisode, RDFS.label, ontologyModel.createLiteral(episodeName));
@@ -532,10 +532,8 @@ public class OntoFacade {
             Resource newCharAppearance = ontologyModel.createResource(Utils.sanitizeURI(newEpisode.getURI() + "_" + a.resource().character().resource().getLocalName()));
             ontologyModel.add(newCharAppearance, HAS_ROLE, a.resource().role().resource());
             ontologyModel.add(newCharAppearance, RDFS.label, ontologyModel.createLiteral(
-                    String.format("Le personnage de %s (%s,%s) dans l'épisode %s de %s",
+                    String.format("Le personnage de %s dans l'épisode %s de %s",
                             a.label(),
-                            a.resource().ageRange().label(),
-                            a.resource().role().label(),
                             newEpisode.getProperty(RDFS.label).getLiteral().getString(),
                             episodeBook.label())));
             ontologyModel.add(newCharAppearance, HAS_AGE_RANGE, a.resource().ageRange().resource());
