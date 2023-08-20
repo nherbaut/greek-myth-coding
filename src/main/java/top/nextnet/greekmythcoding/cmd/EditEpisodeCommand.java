@@ -74,12 +74,27 @@ public class EditEpisodeCommand extends AbstractShellComponentImpl implements Ca
 
     public void commandStarted(StateContext<EditEpisodeStateMachineConfigurer.States, EditEpisodeStateMachineConfigurer.Events> context) {
         System.out.println("current thread in commandStarted" + Thread.currentThread().getId());
-        var nextStates = getLegalEventsForCurrentState(context).stream().map(LabeledEnum::new).collect(Collectors.toSet());
-        if (nextStates.size() == 1) {
-            stateMachine.sendEvent(EditEpisodeStateMachineConfigurer.Events.valueOf(nextStates.iterator().next().label()));
-        } else if (nextStates.size() >= 1) {
-            LabeledEnum e = simpleSingleMatchFromList2("what to do next?", nextStates);
-            stateMachine.sendEvent(EditEpisodeStateMachineConfigurer.Events.valueOf(e.label()));
+        Collection<LabeledObject<EditEpisodeStateMachineConfigurer.Events>> nextLegalEvents = getLegalEventsForCurrentState(context).stream().map(new Function<EditEpisodeStateMachineConfigurer.Events, LabeledObject<EditEpisodeStateMachineConfigurer.Events>>() {
+            @Override
+            public LabeledObject<EditEpisodeStateMachineConfigurer.Events> apply(EditEpisodeStateMachineConfigurer.Events events) {
+                return new LabeledObject<EditEpisodeStateMachineConfigurer.Events>() {
+                    @Override
+                    public String label() {
+                        return events.getLabel();
+                    }
+
+                    @Override
+                    public EditEpisodeStateMachineConfigurer.Events resource() {
+                        return events;
+                    }
+                };
+            }
+        }).collect(Collectors.toSet());
+        if (nextLegalEvents.size() == 1) {
+            stateMachine.sendEvent(nextLegalEvents.iterator().next().resource());
+        } else if (nextLegalEvents.size() >= 1) {
+            var e = simpleSingleMatchFromList2("Que souhaitez-vous faire?", nextLegalEvents);
+            stateMachine.sendEvent(e.resource());
         } else {
             stateMachine.sendEvent(EditEpisodeStateMachineConfigurer.Events.FINISH_EPISODE_CREATION);
         }
@@ -233,7 +248,7 @@ public class EditEpisodeCommand extends AbstractShellComponentImpl implements Ca
             ontoFacade.saveEpisode(episodeName, episodeBook, episodeNumber, episodeLocation, characterAppearances);
             try {
                 ontoFacade.save();
-            }catch (Throwable t){
+            } catch (Throwable t) {
                 t.printStackTrace();
                 throw new RuntimeException(t);
             }

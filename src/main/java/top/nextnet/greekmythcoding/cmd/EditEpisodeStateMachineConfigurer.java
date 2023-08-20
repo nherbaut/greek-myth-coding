@@ -44,30 +44,30 @@ public class EditEpisodeStateMachineConfigurer
                 .state(States.INITIAL)
                 .state(States.NEW_EPISODE_CONFIGURATION_MENU, (context) -> {
                             getCommand(context).commandStarted(context);
-                        }
+                        }, errorAction()
                 )
                 .state(States.CONFIGURE_LOCATION, (context) -> {
                     getCommand(context).askUserForEpisodeLocation(context, ExtendedState.EPISODE_LOCATION, Events.FINISH_CONFIGURE_LOCATION);
                 }, errorAction())
                 .state(States.CONFIGURE_CHARACTER, (context) -> {
                     getCommand(context).askUserForCharacters(context, ExtendedState.EPISODE_CHARACTER_APPEARANCE, Events.FINISH_CONFIGURE_CHARACTER);
-                })
+                }, errorAction())
                 .state(States.CONFIGURE_EPISODE_NUMBER, (context) -> {
                     getCommand(context).askUserForEpisodeNumber(context, ExtendedState.EPISODE_NUMBER, Events.FINISH_CONFIGURE_EPISODE_NUMBER);
-                })
+                }, errorAction())
                 .state(States.CONFIGURE_BOOK, (context) -> {
                     getCommand(context).askUserForBook(context, ExtendedState.EPISODE_BOOK, Events.FINISH_CONFIGURE_BOOK);
-                })
+                }, errorAction())
                 .state(States.ASK_SAVE_ONTOLOGY, (context) -> {
                     getCommand(context).askUserSaveConfirmation(context, Events.WORK_DONE);
-                })
+                }, errorAction())
                 .state(States.CONFIGURE_EPISODE_NAME, (context) -> {
                     getCommand(context).askUserForEpisodeName(context, ExtendedState.EPISODE_NAME_STR, Events.FINISH_CONFIGURE_EPISODE_NAME);
-                },errorAction())
+                }, errorAction())
                 .state(States.FINAL, (context -> {
                     System.out.println("all done");
                     getCommand(context).setRunning(false);
-                }));
+                }), errorAction());
 
 
     }
@@ -87,10 +87,10 @@ public class EditEpisodeStateMachineConfigurer
                 .target(States.CONFIGURE_LOCATION)
                 .event(Events.START_CONFIGURE_LOCATION)
                 .guard(CompositeGuard.combine(
-                        extendedStateGard(WrappedEnumValidator.build(ExtendedState.EPISODE_LOCATION, false)),
-                        extendedStateGard(WrappedEnumValidator.build(ExtendedState.EPISODE_BOOK, true)),
-                        extendedStateGard(WrappedEnumValidator.build(ExtendedState.EPISODE_NUMBER, true)),
-                        extendedStateGard(WrappedEnumValidator.build(ExtendedState.EPISODE_NAME_STR, true))
+                                extendedStateGard(WrappedEnumValidator.build(ExtendedState.EPISODE_LOCATION, false)),
+                                extendedStateGard(WrappedEnumValidator.build(ExtendedState.EPISODE_BOOK, true)),
+                                extendedStateGard(WrappedEnumValidator.build(ExtendedState.EPISODE_NUMBER, true)),
+                                extendedStateGard(WrappedEnumValidator.build(ExtendedState.EPISODE_NAME_STR, true))
                         )
                 )
 
@@ -260,30 +260,56 @@ public class EditEpisodeStateMachineConfigurer
     public enum States {
         INITIAL,
         NEW_EPISODE_CONFIGURATION_MENU,
-        CONFIGURE_LOCATION, CONFIGURE_EPISODE_NAME, CONFIGURE_CHARACTER,
-        CONFIGURE_BOOK,
-        CONFIGURE_EPISODE_NUMBER,
-        ASK_SAVE_ONTOLOGY,
+        CONFIGURE_LOCATION("Configuration du lieu où se déroule l'action"),
+        CONFIGURE_EPISODE_NAME("Configuration du nom de l'épisode"),
+        CONFIGURE_CHARACTER("Configuration des personnages de l'épisode"),
+        CONFIGURE_BOOK("Configuration du livre auquel est attaché l'épisode"),
+        CONFIGURE_EPISODE_NUMBER("Configuration du numéro de l'épisode"),
+        ASK_SAVE_ONTOLOGY("Sauvegarde des données"),
         FINAL;
+
+        private final String label;
+
+        private States(String label) {
+            this.label = label;
+        }
+
+        private States() {
+            this.label = this.name();
+        }
 
 
     }
 
     public enum Events {
         START_EPISODE_CREATION,
-        START_CONFIGURE_LOCATION,
+        START_CONFIGURE_LOCATION("Configurer le lieu"),
         FINISH_CONFIGURE_LOCATION,
-        START_CONFIGURE_CHARACTER,
+        START_CONFIGURE_CHARACTER("Configurer les personnages"),
         FINISH_CONFIGURE_CHARACTER,
         FINISH_CONFIGURE_EPISODE_NAME,
-        START_CONFIGURE_BOOK,
+        START_CONFIGURE_BOOK("Configurer le livre de l'épisode"),
         FINISH_CONFIGURE_BOOK,
-        START_CONFIGURE_EPISODE_NUMBER,
+        START_CONFIGURE_EPISODE_NUMBER("Configurer le numéro de l'épisode"),
         FINISH_CONFIGURE_EPISODE_NUMBER,
-        FINISH_EPISODE_CREATION,
+        FINISH_EPISODE_CREATION("Terminer la configuration de l'épisode"),
 
         WORK_DONE,
-        START_CONFIGURE_EPISODE_NAME;
+        START_CONFIGURE_EPISODE_NAME("Configurer le nom de l'épisode");
+
+        public String getLabel() {
+            return label;
+        }
+
+        private final String label;
+
+        private Events(String label) {
+            this.label = label;
+        }
+
+        private Events() {
+            this.label = this.name();
+        }
 
 
     }
