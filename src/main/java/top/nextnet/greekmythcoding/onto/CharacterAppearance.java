@@ -1,7 +1,6 @@
 package top.nextnet.greekmythcoding.onto;
 
 import org.apache.jena.rdf.model.RDFNode;
-import org.apache.jena.rdf.model.Resource;
 
 public record CharacterAppearance(LabeledResource character, LabeledResource ageRange, LabeledResource role) {
     public static CharacterAppearance getDefault() {
@@ -9,7 +8,7 @@ public record CharacterAppearance(LabeledResource character, LabeledResource age
                 LabeledResource.getDefault(), LabeledResource.getDefault());
     }
 
-    public static Builder getBuilder(){
+    public static Builder getBuilder() {
         return new Builder();
     }
 
@@ -37,8 +36,9 @@ public record CharacterAppearance(LabeledResource character, LabeledResource age
             return this;
         }
 
-        public CharacterAppearance build(){
-            return new CharacterAppearance(this.character,this.ageRange,this.role);
+
+        public CharacterAppearance build() {
+            return new CharacterAppearance(this.character, this.ageRange, this.role);
         }
     }
 }

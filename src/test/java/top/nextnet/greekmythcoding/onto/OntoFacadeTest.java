@@ -75,7 +75,7 @@ class OntoFacadeTest {
     @Test
     void getCharTypes() {
         OntoFacade facade = new OntoFacade();
-        System.out.println(facade.getCharacterTypes().stream().map(lr -> lr.label()).collect(Collectors.joining(" ")));
+        System.out.println(facade.getAllCharacterTypes().stream().map(lr -> lr.label()).collect(Collectors.joining(" ")));
     }
 
     @Test

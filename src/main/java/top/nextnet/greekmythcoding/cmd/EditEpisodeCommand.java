@@ -117,7 +117,7 @@ public class EditEpisodeCommand extends AbstractShellComponentImpl implements Ca
         Collection<LabeledResource> allRetainedCharacters = appearances.stream().map(lca -> lca.resource().character()).collect(Collectors.toSet());
         allCharacters = allCharacters.stream().filter(lr -> !allRetainedCharacters.contains(lr.resource())).collect(Collectors.toSet());
         ;
-        final Collection<LabeledResource> allCharacterClasses = ontoFacade.getCharacterTypes();
+        final Collection<LabeledResource> allCharacterClasses = ontoFacade.getAllCharacterTypes();
         final Collection<LabeledResource> allAgeRanges = ontoFacade.getAgeRanges();
         final Collection<LabeledResource> allRoles = ontoFacade.getRoleRange();
         while (simpleAskYNQuestion("Y-a-t-il d'autres personnages dans l'épisode?", false)) {
@@ -126,11 +126,12 @@ public class EditEpisodeCommand extends AbstractShellComponentImpl implements Ca
                 @Override
                 public LabeledCharacterAppearance apply(String s) {
                     LabeledResource newClassOfCharacter = simpleSingleMatchFromList2("Quel est le type du personnage?", allCharacterClasses);
+                    LabeledResource characterClass = ontoFacade.createNewCharacterClass(s,newClassOfCharacter);
                     LabeledResource newCharacterAgeInEpisode = simpleSingleMatchFromList2("Quelle est la classe d'age du personnage dans cet épisode?", allAgeRanges);
                     LabeledResource newCharacterRoleInEpisode = simpleSingleMatchFromList2("Quelle est le rôle du personnage dans cet épisode?", allRoles);
-                    ontoFacade.createNewCharacterClass(s, newClassOfCharacter);
+
                     String characterLabel = String.format("%s (%s, %s) dans %s", s, newCharacterAgeInEpisode.label(), newCharacterRoleInEpisode.label(), context.getExtendedState().get(EditEpisodeStateMachineConfigurer.ExtendedState.EPISODE_NAME_STR, EditEpisodeStateMachineConfigurer.ExtendedState.EPISODE_NAME_STR.getType()));
-                    return new LabeledCharacterAppearance(characterLabel, CharacterAppearance.getBuilder().withCharacter(newClassOfCharacter.resource()).withAgeRange(newCharacterAgeInEpisode.resource()).withRole(newCharacterRoleInEpisode.resource()).build());
+                    return new LabeledCharacterAppearance(characterLabel, CharacterAppearance.getBuilder().withCharacter(characterClass.resource()).withAgeRange(newCharacterAgeInEpisode.resource()).withRole(newCharacterRoleInEpisode.resource()).build());
 
 
                 }
@@ -220,7 +221,7 @@ public class EditEpisodeCommand extends AbstractShellComponentImpl implements Ca
         if (previousEpisode.equals(LabeledResource.getDefault())) {
             previousLocation = LabeledResource.getDefault();
         } else {
-            previousLocation = ontoFacade.getLocationForEpisode(previousEpisode);
+            previousLocation = ontoFacade.getLocationIndividualsFromPreviousEpisode(previousEpisode);
         }
 
         context.getExtendedState().getVariables().put(EditEpisodeStateMachineConfigurer.ExtendedState.PREVIOUS_EPISODE, previousEpisode);
